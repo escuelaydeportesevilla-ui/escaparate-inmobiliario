@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Escaparate Inmobiliario</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --ink:#152332;
+    --ink-soft:#3d5064;
+    --paper:#eef1ec;
+    --surface:#ffffff;
+    --surface-2:#e2e7de;
+    --line:#c9d0c4;
+    --brand:#b8842c;
+    --brand-ink:#5c3f0f;
+    --clay:#8a5a44;
+    --good:#3f7d54;
+    --bad:#b1493c;
+    --wa-bubble:#dcf3e3;
+    --shadow: 0 1px 2px rgba(21,35,50,.06), 0 8px 24px -12px rgba(21,35,50,.18);
+    --radius: 14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#eef1ec; --ink-soft:#b6c0ba; --paper:#121a17; --surface:#1a231f;
+      --surface-2:#22302a; --line:#334138; --brand:#d9a441; --brand-ink:#f3d99a;
+      --clay:#c98b70; --good:#6fc98c; --bad:#e28374; --wa-bubble:#1e3327;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#eef1ec; --ink-soft:#b6c0ba; --paper:#121a17; --surface:#1a231f;
+    --surface-2:#22302a; --line:#334138; --brand:#d9a441; --brand-ink:#f3d99a;
+    --clay:#c98b70; --good:#6fc98c; --bad:#e28374; --wa-bubble:#1e3327;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px -14px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'Public Sans',system-ui,-apple-system,sans-serif;
+    padding-inline:16px; padding-block:0 28px; max-width:1180px; margin-inline:auto;
+  }
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:600; text-wrap:balance; margin:0;}
+
+  header.top{display:flex; align-items:center; justify-content:space-between; gap:16px; padding-block:22px 16px; flex-wrap:wrap;}
+  .brandmark{display:flex; align-items:center; gap:12px;}
+  .brandmark .icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(155deg,var(--brand),var(--clay));display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:var(--shadow);}
+  .brandmark .icon svg{width:20px;height:20px;}
+  .brandmark h1{font-size:clamp(1.25rem,1rem + 1vw,1.6rem);}
+  .brandmark p{margin:2px 0 0; color:var(--ink-soft); font-size:.85rem;}
+
+  nav.tabs{display:flex; gap:6px; background:var(--surface-2); padding:5px; border-radius:12px; border:1px solid var(--line); flex-wrap:wrap;}
+  nav.tabs button{font:inherit; font-weight:600; font-size:.9rem; color:var(--ink-soft); background:transparent; border:none; padding:9px 16px; border-radius:8px; cursor:pointer;}
+  nav.tabs button[aria-selected="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow);}
+  nav.tabs button:focus-visible{outline:2px solid var(--brand); outline-offset:2px;}
+
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  .grid{display:grid; grid-template-columns:minmax(280px,380px) 1fr; gap:22px; align-items:start;}
+  @media (max-width:820px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow);}
+  .panel h2{font-size:1.1rem; margin-bottom:4px;}
+  .panel .hint{color:var(--ink-soft); font-size:.82rem; margin:0 0 16px;}
+
+  .field{margin-bottom:13px;}
+  .field label{display:block; font-size:.78rem; font-weight:600; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:.03em;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  input,select,textarea{width:100%; font:inherit; font-size:.92rem; padding:9px 11px; border-radius:9px; border:1px solid var(--line); background:var(--paper); color:var(--ink);}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--brand); outline-offset:1px;}
+  textarea{resize:vertical; min-height:64px; font-family:inherit;}
+
+  button.primary{width:100%; font:inherit; font-weight:700; font-size:.95rem; color:#fff; background:linear-gradient(155deg,var(--brand),var(--clay)); border:none; border-radius:10px; padding:12px 16px; cursor:pointer; box-shadow:var(--shadow); margin-top:4px; display:flex; align-items:center; justify-content:center; gap:8px;}
+  button.primary:disabled{opacity:.6; cursor:progress;}
+  button.secondary{width:100%; font:inherit; font-weight:700; font-size:.88rem; color:var(--brand-ink); background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; cursor:pointer; margin-top:8px;}
+  button.ghost{font:inherit; font-size:.82rem; font-weight:600; color:var(--ink-soft); background:transparent; border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer;}
+  button.ghost:hover{border-color:var(--brand); color:var(--brand-ink);}
+
+  .previews{display:flex; flex-direction:column; gap:18px;}
+  .preview-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
+  .preview-head{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 16px; border-bottom:1px solid var(--line); background:var(--surface-2);}
+  .preview-head .tag{font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft);}
+  .preview-body{padding:18px;}
+  .placeholder{color:var(--ink-soft); font-size:.88rem; font-style:italic;}
+
+  .portal-title{font-family:'Fraunces',serif; font-size:1.15rem; font-weight:600; margin:0 0 6px;}
+  .portal-price{font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:600; color:var(--brand-ink); margin:0 0 10px;}
+  .portal-specs{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+  .portal-specs span{background:var(--surface-2); border-radius:6px; padding:4px 9px; font-size:.78rem; font-family:'IBM Plex Mono',monospace;}
+  .portal-body{white-space:pre-wrap; line-height:1.55; font-size:.93rem;}
+
+  .ig-frame{max-width:320px; margin-inline:auto; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .ig-photo{aspect-ratio:1/1; background:linear-gradient(155deg, var(--clay), var(--brand)); display:flex; align-items:center; justify-content:center; color:#fff; text-align:center; padding:20px; font-family:'Fraunces',serif; font-size:1rem;}
+  .ig-caption{padding:12px 14px; white-space:pre-wrap; font-size:.86rem; line-height:1.5;}
+
+  .wa-wrap{background:var(--surface-2); border-radius:10px; padding:16px; max-width:420px; margin-inline:auto;}
+  .wa-bubble{background:var(--wa-bubble); border-radius:10px 10px 10px 2px; padding:11px 13px; white-space:pre-wrap; font-size:.88rem; line-height:1.5;}
+
+  .copybar{display:flex; justify-content:flex-end; padding:10px 16px; border-top:1px solid var(--line); background:var(--surface-2);}
+
+  .thread{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:18px;}
+  .lead-bubble{background:var(--surface-2); border-radius:2px 10px 10px 10px; padding:12px 14px; font-size:.92rem; max-width:70%;}
+  .reply-suggestion{margin-top:14px; background:var(--wa-bubble); border-radius:10px 10px 10px 2px; padding:12px 14px; white-space:pre-wrap; font-size:.9rem; line-height:1.55; max-width:80%; margin-left:auto;}
+  .reply-suggestion.empty{background:var(--surface-2); color:var(--ink-soft); font-style:italic;}
+
+  .agenda-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width:820px){ .agenda-grid{grid-template-columns:1fr;} }
+
+  .visit-item{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:12px 0; border-bottom:1px solid var(--line);}
+  .visit-item:last-child{border-bottom:none;}
+  .visit-item .who{font-weight:700; font-size:.92rem;}
+  .visit-item .what{color:var(--ink-soft); font-size:.82rem; margin-top:2px;}
+  .visit-item .when{font-family:'IBM Plex Mono',monospace; font-size:.82rem; background:var(--surface-2); border-radius:6px; padding:3px 8px; white-space:nowrap;}
+  .visit-item button{background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:.78rem;padding:4px;}
+  .visit-item button:hover{color:var(--clay);}
+  .empty-note{color:var(--ink-soft); font-size:.86rem; font-style:italic; padding:6px 0;}
+
+  details.config{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 20px; margin-bottom:18px;}
+  details.config summary{cursor:pointer; font-weight:700; font-size:.92rem;}
+  details.config[open] summary{margin-bottom:12px;}
+  .badge{display:inline-flex; align-items:center; gap:6px; font-size:.78rem; font-weight:600; padding:3px 10px; border-radius:999px; margin-left:10px;}
+  .badge.ok{background:rgba(63,125,84,.15); color:var(--good);}
+  .badge.off{background:rgba(177,73,60,.15); color:var(--bad);}
+
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(8px); background:var(--ink); color:var(--paper); padding:9px 16px; border-radius:9px; font-size:.85rem; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:50;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brandmark">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+    </div>
+    <div>
+      <h1>Escaparate</h1>
+      <p>Anuncios y visitas, listos en segundos</p>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-ads" aria-selected="true" onclick="switchView('ads')">Anuncios</button>
+    <button role="tab" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas y visitas</button>
+  </nav>
+</header>
+
+<details class="config" id="config-panel">
+  <summary>Configuración de la agenda (Google Sheet) <span class="badge off" id="config-badge">sin configurar</span></summary>
+  <p class="hint" style="margin:0 0 12px;">Pega aquí la URL del Web App de Apps Script y el token que definiste (ver <code>apps-script/Code.gs</code>). Se guardan solo en este navegador.</p>
+  <div class="field">
+    <label for="cfg-url">URL del Web App (termina en /exec)</label>
+    <input id="cfg-url" placeholder="https://script.google.com/macros/s/…/exec">
+  </div>
+  <div class="field">
+    <label for="cfg-token">Token</label>
+    <input id="cfg-token" placeholder="tu-token-secreto">
+  </div>
+  <button class="secondary" onclick="saveConfig()">Guardar configuración</button>
+</details>
+
+<section class="view active" id="view-ads">
+  <div class="grid">
+    <form class="panel" id="ad-form" onsubmit="return false;">
+      <h2>Ficha del inmueble</h2>
+      <p class="hint">Rellena los datos clave. El prompt para redactar lo prepara la app.</p>
+
+      <div class="field"><label for="f-titulo">Título interno</label><input id="f-titulo" value="Piso reformado junto al río, Triana"></div>
+
+      <div class="row2">
+        <div class="field"><label for="f-operacion">Operación</label>
+          <select id="f-operacion"><option value="venta" selected>Venta</option><option value="alquiler">Alquiler</option></select>
+        </div>
+        <div class="field"><label for="f-tipo">Tipo</label>
+          <select id="f-tipo"><option selected>Piso</option><option>Ático</option><option>Casa</option><option>Chalet</option><option>Local</option><option>Terreno</option></select>
+        </div>
+      </div>
+
+      <div class="field"><label for="f-ubicacion">Ubicación</label><input id="f-ubicacion" value="Calle Pureza, Triana, Sevilla"></div>
+
+      <div class="row3">
+        <div class="field"><label for="f-precio">Precio (€)</label><input id="f-precio" type="number" value="245000"></div>
+        <div class="field"><label for="f-metros">m² útiles</label><input id="f-metros" type="number" value="95"></div>
+        <div class="field"><label for="f-planta">Planta</label><input id="f-planta" value="3ª con ascensor"></div>
+      </div>
+
+      <div class="row2">
+        <div class="field"><label for="f-hab">Habitaciones</label><input id="f-hab" type="number" value="3"></div>
+        <div class="field"><label for="f-banos">Baños</label><input id="f-banos" type="number" value="2"></div>
+      </div>
+
+      <div class="field"><label for="f-estado">Estado</label>
+        <select id="f-estado"><option>A estrenar</option><option selected>Reformado</option><option>Buen estado</option><option>A reformar</option></select>
+      </div>
+
+      <div class="field"><label for="f-caract">Características (separadas por comas)</label>
+        <textarea id="f-caract">terraza de 8m², ascensor, aire acondicionado por conductos, suelo de gres porcelánico, cocina abierta, a 5 min del puente de Triana, garaje opcional</textarea>
+      </div>
+
+      <div class="field"><label for="f-tono">Tono del texto</label>
+        <select id="f-tono"><option selected>Profesional y cercano</option><option>Directo y comercial</option><option>Premium / lujo</option><option>Familiar y tranquilo</option></select>
+      </div>
+
+      <button class="primary" onclick="prepareAdPrompt()">Abrir en Claude</button>
+      <button class="secondary" onclick="copyAdPrompt()">Solo copiar el prompt</button>
+
+      <div class="field" style="margin-top:16px;">
+        <label for="ad-paste">Pega aquí la respuesta de Claude</label>
+        <textarea id="ad-paste" style="min-height:90px" placeholder="Pega el texto completo que te devuelva Claude…"></textarea>
+      </div>
+      <button class="secondary" onclick="applyAdPaste()">Repartir en las tres tarjetas</button>
+    </form>
+
+    <div class="previews">
+      <article class="preview-card">
+        <div class="preview-head"><span class="tag">Portal inmobiliario</span></div>
+        <div class="preview-body" id="out-portal"><p class="placeholder">Aquí aparecerá el anuncio largo, listo para Idealista o Fotocasa.</p></div>
+        <div class="copybar"><button class="ghost" onclick="copyBlock('portal')">Copiar texto</button></div>
+      </article>
+
+      <article class="preview-card">
+        <div class="preview-head"><span class="tag">Instagram</span></div>
+        <div class="preview-body">
+          <div class="ig-frame">
+            <div class="ig-photo">Foto de portada<br>del inmueble aquí</div>
+            <div class="ig-caption" id="out-instagram"><span class="placeholder">Aquí aparecerá la descripción corta con hashtags.</span></div>
+          </div>
+        </div>
+        <div class="copybar"><button class="ghost" onclick="copyBlock('instagram')">Copiar texto</button></div>
+      </article>
+
+      <article class="preview-card">
+        <div class="preview-head"><span class="tag">WhatsApp</span></div>
+        <div class="preview-body"><div class="wa-wrap"><div class="wa-bubble" id="out-whatsapp"><span class="placeholder">Aquí aparecerá el mensaje breve para enviar a un cliente.</span></div></div></div>
+        <div class="copybar"><button class="ghost" onclick="copyBlock('whatsapp')">Copiar texto</button></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="view-leads">
+  <div class="agenda-grid">
+    <div class="thread panel">
+      <h2>Responder a un cliente</h2>
+      <p class="hint">Pega el mensaje que has recibido, abre Claude con el prompt listo y pega aquí su respuesta.</p>
+
+      <div class="field"><label for="f-lead-msg">Mensaje recibido</label>
+        <textarea id="f-lead-msg" style="min-height:76px">Hola buenas! He visto el piso de Triana en Idealista, ¿sigue disponible? ¿Podría verlo esta semana?</textarea>
+      </div>
+      <div class="field"><label for="f-slots">Huecos disponibles para visita (uno por línea)</label>
+        <textarea id="f-slots" style="min-height:76px">Miércoles 24/09 · 17:30h
+Jueves 25/09 · 10:00h
+Viernes 26/09 · 18:00h</textarea>
+      </div>
+
+      <button class="primary" onclick="prepareReplyPrompt()">Abrir en Claude</button>
+      <button class="secondary" onclick="copyReplyPrompt()">Solo copiar el prompt</button>
+
+      <div class="lead-bubble" id="lead-echo" style="margin-top:16px;">Hola buenas! He visto el piso de Triana en Idealista, ¿sigue disponible? ¿Podría verlo esta semana?</div>
+      <div class="reply-suggestion empty" id="out-reply">La respuesta sugerida aparecerá aquí.</div>
+
+      <div class="field" style="margin-top:14px;">
+        <label for="reply-paste">Pega aquí la respuesta de Claude</label>
+        <textarea id="reply-paste" style="min-height:70px" placeholder="Pega el texto que te devuelva Claude…"></textarea>
+      </div>
+      <button class="secondary" onclick="applyReplyPaste()">Usar como respuesta</button>
+      <div class="copybar" style="border:none; padding:10px 0 0;"><button class="ghost" onclick="copyBlock('reply')">Copiar respuesta</button></div>
+    </div>
+
+    <div class="panel">
+      <h2>Agendar visita</h2>
+      <p class="hint">Se guarda en tu Google Sheet si has configurado la agenda arriba; si no, se guarda solo en este navegador.</p>
+
+      <div class="field"><label for="v-cliente">Cliente</label><input id="v-cliente" placeholder="Nombre y apellidos"></div>
+      <div class="row2">
+        <div class="field"><label for="v-telefono">Teléfono</label><input id="v-telefono" placeholder="600 000 000"></div>
+        <div class="field"><label for="v-inmueble">Inmueble</label><input id="v-inmueble" value="Piso en Triana, Sevilla"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date"></div>
+        <div class="field"><label for="v-hora">Hora</label><input id="v-hora" type="time" value="17:30"></div>
+      </div>
+      <button class="primary" onclick="scheduleVisit()">Añadir a la agenda</button>
+
+      <h2 style="margin-top:22px; font-size:1rem;">Próximas visitas</h2>
+      <div id="visits-list" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CONFIG_KEY = 'escaparate_config_v1';
+  var VISITS_KEY = 'escaparate_visits_v1';
+  var config = { url: '', token: '' };
+  var visits = [];
+
+  // ---- config -------------------------------------------------------
+  function loadConfig(){
+    try{
+      var raw = localStorage.getItem(CONFIG_KEY);
+      if(raw) config = JSON.parse(raw);
+    }catch(e){}
+    document.getElementById('cfg-url').value = config.url || '';
+    document.getElementById('cfg-token').value = config.token || '';
+    updateConfigBadge();
+  }
+  window.saveConfig = function(){
+    config.url = document.getElementById('cfg-url').value.trim();
+    config.token = document.getElementById('cfg-token').value.trim();
+    try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
+    updateConfigBadge();
+    toast('Configuración guardada');
+    loadVisits();
+  };
+  function updateConfigBadge(){
+    var b = document.getElementById('config-badge');
+    if(config.url && config.token){ b.textContent = 'conectado'; b.className = 'badge ok'; }
+    else { b.textContent = 'sin configurar'; b.className = 'badge off'; }
+  }
+  function hasSheet(){ return !!(config.url && config.token); }
+
+  // ---- toast ----------------------------------------------------------
+  function toast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._h);
+    toast._h = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  }
+
+  // ---- tabs -----------------------------------------------------------
+  window.switchView = function(name){
+    document.getElementById('view-ads').classList.toggle('active', name==='ads');
+    document.getElementById('view-leads').classList.toggle('active', name==='leads');
+    document.getElementById('tab-ads').setAttribute('aria-selected', name==='ads');
+    document.getElementById('tab-leads').setAttribute('aria-selected', name==='leads');
+  };
+
+  function val(id){ return document.getElementById(id).value.trim(); }
+  function escapeHTML(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function copyToClipboard(text){
+    try{
+      navigator.clipboard.writeText(text).then(function(){ toast('Copiado al portapapeles'); })
+        .catch(function(){ fallbackCopy(text); });
+    }catch(e){ fallbackCopy(text); }
+  }
+  function fallbackCopy(text){
+    try{
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      toast('Copiado al portapapeles');
+    }catch(e){ toast('No se pudo copiar automáticamente'); }
+  }
+  function openClaude(prompt){
+    copyToClipboard(prompt);
+    var url = 'https://claude.ai/new?q=' + encodeURIComponent(prompt);
+    window.open(url, '_blank');
+    toast('Prompt copiado y Claude abierto en otra pestaña');
+  }
+
+  // ---- ad prompt --------------------------------------------------------
+  function readProperty(){
+    return {
+      titulo: val('f-titulo'), operacion: val('f-operacion'), tipo: val('f-tipo'),
+      ubicacion: val('f-ubicacion'), precio: val('f-precio'), metros: val('f-metros'),
+      planta: val('f-planta'), habitaciones: val('f-hab'), banos: val('f-banos'),
+      estado: val('f-estado'), caracteristicas: val('f-caract'), tono: val('f-tono')
+    };
+  }
+  function buildAdPrompt(p){
+    var precioFmt = Number(p.precio||0).toLocaleString('es-ES') + ' €' + (p.operacion==='alquiler' ? '/mes' : '');
+    return "Eres un redactor inmobiliario en España. Con esta ficha, redacta TRES textos distintos para el " +
+      "mismo inmueble y responde EXACTAMENTE con este formato, sin explicaciones ni texto extra:\n\n" +
+      "===PORTAL===\n(anuncio de 120-180 palabras para Idealista/Fotocasa, titular en la primera línea, " +
+      "sin emojis, termina con llamada a la acción para visitar)\n\n" +
+      "===INSTAGRAM===\n(descripción de 40-70 palabras, cercana, con 5-8 hashtags en español al final, " +
+      "máximo 1-2 emojis)\n\n" +
+      "===WHATSAPP===\n(mensaje de 2-4 frases para copiar y enviar a un cliente interesado, tono " + p.tono.toLowerCase() +
+      ", sin hashtags, con una pregunta para agendar visita)\n\n" +
+      "FICHA:\n- Operación: " + p.operacion + "\n- Tipo: " + p.tipo + "\n- Ubicación: " + p.ubicacion +
+      "\n- Precio: " + precioFmt + "\n- Superficie: " + p.metros + " m² útiles\n- Planta: " + p.planta +
+      "\n- Habitaciones: " + p.habitaciones + " | Baños: " + p.banos + "\n- Estado: " + p.estado +
+      "\n- Características: " + p.caracteristicas + "\n- Tono: " + p.tono;
+  }
+  window.prepareAdPrompt = function(){
+    var p = readProperty();
+    if(!p.titulo || !p.ubicacion){ toast('Añade al menos título y ubicación'); return; }
+    openClaude(buildAdPrompt(p));
+  };
+  window.copyAdPrompt = function(){
+    var p = readProperty();
+    copyToClipboard(buildAdPrompt(p));
+  };
+  window.applyAdPaste = function(){
+    var text = document.getElementById('ad-paste').value;
+    var parts = splitSections(text, ['PORTAL','INSTAGRAM','WHATSAPP']);
+    if(!parts.PORTAL && !parts.INSTAGRAM && !parts.WHATSAPP){
+      toast('No he encontrado las secciones ===PORTAL=== etc. en el texto pegado'); return;
+    }
+    var p = readProperty();
+    var precioFmt = Number(p.precio||0).toLocaleString('es-ES') + ' €' + (p.operacion==='alquiler' ? '/mes' : '');
+    if(parts.PORTAL) document.getElementById('out-portal').innerHTML = buildPortalHTML(p, precioFmt, parts.PORTAL);
+    if(parts.INSTAGRAM) document.getElementById('out-instagram').textContent = parts.INSTAGRAM;
+    if(parts.WHATSAPP) document.getElementById('out-whatsapp').textContent = parts.WHATSAPP;
+    toast('Tarjetas actualizadas');
+  };
+  function buildPortalHTML(p, precioFmt, body){
+    var specs = [p.tipo, p.metros + ' m²', p.habitaciones + ' hab', p.banos + ' baños', p.planta].filter(Boolean);
+    var html = '<p class="portal-title">' + escapeHTML(p.titulo) + '</p>';
+    html += '<p class="portal-price">' + escapeHTML(precioFmt) + '</p>';
+    html += '<div class="portal-specs">' + specs.map(function(s){ return '<span>' + escapeHTML(s) + '</span>'; }).join('') + '</div>';
+    html += '<div class="portal-body">' + escapeHTML(body) + '</div>';
+    return html;
+  }
+  function splitSections(text, names){
+    var out = {};
+    names.forEach(function(name){
+      var re = new RegExp('===\\s*' + name + '\\s*===([\\s\\S]*?)(?====\\s*[A-Z]+\\s*===|$)', 'i');
+      var m = text.match(re);
+      out[name] = m ? m[1].trim() : '';
+    });
+    return out;
+  }
+
+  window.copyBlock = function(which){
+    var text = '';
+    if(which==='portal') text = document.getElementById('out-portal').innerText;
+    if(which==='instagram') text = document.getElementById('out-instagram').innerText;
+    if(which==='whatsapp') text = document.getElementById('out-whatsapp').innerText;
+    if(which==='reply') text = document.getElementById('out-reply').innerText;
+    if(!text || /^Aquí aparecerá|^La respuesta sugerida/.test(text)){ toast('Todavía no hay texto que copiar'); return; }
+    copyToClipboard(text);
+  };
+
+  // ---- reply prompt -------------------------------------------------------
+  function buildReplyPrompt(msg, slots){
+    return "Eres un agente inmobiliario español respondiendo por WhatsApp a un cliente potencial.\n" +
+      "Mensaje del cliente: \"" + msg + "\"\n\nHuecos de visita disponibles:\n" +
+      slots.map(function(s){ return '- ' + s; }).join('\n') +
+      "\n\nRedacta SOLO el texto de una respuesta breve (3-5 frases), cercana y profesional, que confirme " +
+      "disponibilidad del inmueble y proponga 2 de esos huecos concretos, pidiendo que confirme cuál le viene " +
+      "mejor. Sin emojis ni hashtags. No añadas explicaciones, solo el mensaje.";
+  }
+  window.prepareReplyPrompt = function(){
+    var msg = val('f-lead-msg');
+    document.getElementById('lead-echo').textContent = msg || '—';
+    if(!msg){ toast('Pega primero el mensaje del cliente'); return; }
+    var slots = val('f-slots').split('\n').map(function(s){return s.trim();}).filter(Boolean);
+    openClaude(buildReplyPrompt(msg, slots));
+  };
+  window.copyReplyPrompt = function(){
+    var msg = val('f-lead-msg');
+    var slots = val('f-slots').split('\n').map(function(s){return s.trim();}).filter(Boolean);
+    copyToClipboard(buildReplyPrompt(msg, slots));
+  };
+  window.applyReplyPaste = function(){
+    var text = document.getElementById('reply-paste').value.trim();
+    if(!text){ toast('Pega antes la respuesta de Claude'); return; }
+    var out = document.getElementById('out-reply');
+    out.textContent = text;
+    out.classList.remove('empty');
+  };
+
+  // ---- agenda: Sheet backend or localStorage fallback --------------------
+  function loadVisits(){
+    if(hasSheet()){
+      fetch(config.url + '?token=' + encodeURIComponent(config.token))
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if(data && data.visits){ visits = data.visits; renderVisits(); }
+          else if(data && data.error){ toast('Sheet: ' + data.error); }
+        })
+        .catch(function(){ toast('No se pudo conectar con el Sheet, usando datos locales'); loadLocalVisits(); });
+    } else {
+      loadLocalVisits();
+    }
+  }
+  function loadLocalVisits(){
+    try{
+      var raw = localStorage.getItem(VISITS_KEY);
+      visits = raw ? JSON.parse(raw) : [];
+    }catch(e){ visits = []; }
+    renderVisits();
+  }
+  function saveLocalVisits(){
+    try{ localStorage.setItem(VISITS_KEY, JSON.stringify(visits)); }catch(e){}
+  }
+
+  window.scheduleVisit = function(){
+    var cliente = val('v-cliente'), telefono = val('v-telefono'), inmueble = val('v-inmueble');
+    var fecha = document.getElementById('v-fecha').value, hora = document.getElementById('v-hora').value;
+    if(!cliente || !fecha || !hora){ toast('Rellena al menos cliente, fecha y hora'); return; }
+    var visit = { id: 'v' + Date.now(), cliente: cliente, telefono: telefono, inmueble: inmueble, fecha: fecha, hora: hora };
+
+    if(hasSheet()){
+      fetch(config.url, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'add', token: config.token, visit: visit })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if(data && data.visits){ visits = data.visits; renderVisits(); toast('Visita guardada en el Sheet'); }
+          else { toast('No se pudo guardar en el Sheet'); }
+        }).catch(function(){ toast('No se pudo conectar con el Sheet'); });
+    } else {
+      visits.push(visit);
+      visits.sort(function(a,b){ return (a.fecha+a.hora).localeCompare(b.fecha+b.hora); });
+      saveLocalVisits(); renderVisits();
+      toast('Visita guardada en este navegador');
+    }
+    document.getElementById('v-cliente').value = '';
+    document.getElementById('v-telefono').value = '';
+  };
+
+  window.removeVisit = function(id){
+    if(hasSheet()){
+      fetch(config.url, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', token: config.token, id: id })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){ if(data && data.visits){ visits = data.visits; renderVisits(); } })
+        .catch(function(){ toast('No se pudo borrar en el Sheet'); });
+    } else {
+      visits = visits.filter(function(v){ return v.id !== id; });
+      saveLocalVisits(); renderVisits();
+    }
+  };
+
+  function renderVisits(){
+    var el = document.getElementById('visits-list');
+    if(!visits.length){ el.innerHTML = '<p class="empty-note">Todavía no hay visitas agendadas.</p>'; return; }
+    el.innerHTML = visits.map(function(v){
+      var when = formatDate(v.fecha) + ' · ' + v.hora + 'h';
+      return '<div class="visit-item">' +
+        '<div><div class="who">' + escapeHTML(v.cliente) + '</div>' +
+          '<div class="what">' + escapeHTML(v.inmueble) + (v.telefono ? ' · ' + escapeHTML(v.telefono) : '') + '</div></div>' +
+        '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">' +
+          '<span class="when">' + escapeHTML(when) + '</span>' +
+          '<button onclick="removeVisit(\'' + v.id + '\')">Quitar</button></div>' +
+      '</div>';
+    }).join('');
+  }
+  function formatDate(iso){
+    if(!iso) return '';
+    var parts = iso.split('-');
+    if(parts.length!==3) return iso;
+    return parts[2] + '/' + parts[1];
+  }
+
+  // ---- boot ---------------------------------------------------------------
+  loadConfig();
+  loadVisits();
+  (function setDefaultDate(){
+    var el = document.getElementById('v-fecha');
+    if(!el.value){ var d = new Date(); d.setDate(d.getDate()+3); el.value = d.toISOString().slice(0,10); }
+  })();
+})();
+</script>
+</body>
+</html>
