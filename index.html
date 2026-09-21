@@ -488,7 +488,29 @@
     if(parts.PORTAL) document.getElementById('out-portal').innerHTML = buildPortalHTML(p, precioFmt, parts.PORTAL);
     if(parts.INSTAGRAM) document.getElementById('out-instagram').textContent = parts.INSTAGRAM;
     if(parts.WHATSAPP) document.getElementById('out-whatsapp').textContent = parts.WHATSAPP;
-    toast('Tarjetas actualizadas');
+
+    if(hasSheet()){
+      fetch(config.url, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'addAd', token: config.token,
+          ad: {
+            id: 'a' + Date.now(), titulo: p.titulo, operacion: p.operacion, tipo: p.tipo,
+            ubicacion: p.ubicacion, precio: p.precio, metros: p.metros,
+            habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
+            caracteristicas: p.caracteristicas, tono: p.tono,
+            portal: parts.PORTAL, instagram: parts.INSTAGRAM, whatsapp: parts.WHATSAPP
+          }
+        })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if(data && data.ok){ toast('Tarjetas actualizadas y anuncio guardado en tu Sheet'); }
+          else { toast('Tarjetas actualizadas (no se pudo guardar en el Sheet)'); }
+        })
+        .catch(function(){ toast('Tarjetas actualizadas (no se pudo guardar en el Sheet)'); });
+    } else {
+      toast('Tarjetas actualizadas. Configura la agenda arriba para guardar histórico de anuncios.');
+    }
   };
   function buildPortalHTML(p, precioFmt, body){
     var specs = [p.tipo, p.metros + ' m²', p.habitaciones + ' hab', p.banos + ' baños', p.planta].filter(Boolean);
