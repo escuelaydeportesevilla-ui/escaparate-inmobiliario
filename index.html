@@ -95,6 +95,8 @@
   button.secondary{width:100%; font:inherit; font-weight:700; font-size:.88rem; color:var(--brand-ink); background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; cursor:pointer; margin-top:8px;}
   button.ghost{font:inherit; font-size:.82rem; font-weight:600; color:var(--ink-soft); background:transparent; border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer;}
   button.ghost:hover{border-color:var(--brand); color:var(--brand-ink);}
+  button.ghost:disabled{opacity:.5; cursor:not-allowed;}
+  button.ghost:disabled:hover{border-color:var(--line); color:var(--ink-soft);}
 
   .previews{display:flex; flex-direction:column; gap:18px;}
   .preview-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
@@ -213,7 +215,8 @@
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" id="tab-ads" aria-selected="true" onclick="switchView('ads')">Anuncios</button>
-    <button role="tab" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas y visitas</button>
+    <button role="tab" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas</button>
+    <button role="tab" id="tab-visits" aria-selected="false" onclick="switchView('visits')">Visitas</button>
   </nav>
 </header>
 
@@ -244,6 +247,11 @@
           <button type="button" class="secondary" style="width:auto; margin-top:0; white-space:nowrap;" onclick="searchAds()">Buscar</button>
         </div>
         <div id="ad-search-results"></div>
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+          <button type="button" class="ghost" id="btn-actualizar" onclick="updateCurrentAd()">Actualizar</button>
+          <button type="button" class="ghost" onclick="reloadFromSheet()">Recargar de Sheet</button>
+          <button type="button" class="ghost" onclick="newAd()">Nuevo anuncio</button>
+        </div>
       </div>
 
       <div class="field"><label for="f-titulo">Título interno</label><input id="f-titulo" placeholder="Introduce un título para identificarlo, ej. Piso en Triana"></div>
@@ -320,63 +328,73 @@
 </section>
 
 <section class="view" id="view-leads">
-  <div class="agenda-grid">
-    <div class="thread panel">
-      <h2>Responder a un cliente</h2>
-      <p class="hint">Añade aquí cada mensaje según lo recibas, para tenerlo a mano sin salir a WhatsApp.</p>
+  <div class="thread panel">
+    <h2>Responder a un cliente</h2>
+    <p class="hint">Añade aquí cada mensaje según lo recibas, para tenerlo a mano sin salir a WhatsApp.</p>
 
-      <div class="field">
-        <label>Conversación</label>
-        <div id="conversation-thread" class="conversation-thread">
-          <p class="empty-note">Todavía no has añadido ningún mensaje.</p>
-        </div>
+    <div class="field">
+      <label for="link-ad-search">Vincular con un anuncio (buscar por título interno)</label>
+      <div class="row2">
+        <input id="link-ad-search" placeholder="Escribe parte del título…">
+        <button type="button" class="secondary" onclick="searchLinkAd()" style="margin-top:0;">Buscar</button>
       </div>
+      <div id="link-ad-results"></div>
+      <div id="linked-ad-chip" style="display:none; margin-top:8px;"></div>
+    </div>
 
-      <div class="field">
-        <label for="f-new-msg">Nuevo mensaje del cliente</label>
-        <textarea id="f-new-msg" style="min-height:64px" placeholder="Pega aquí lo último que te ha escrito…"></textarea>
-      </div>
-      <button class="secondary" onclick="addClientMessage()">Añadir a la conversación</button>
-
-      <div class="field" style="margin-top:14px;">
-        <label for="f-slots">Huecos disponibles para visita (uno por línea)</label>
-        <textarea id="f-slots" style="min-height:64px" placeholder="Introduce un hueco por línea, ej.: Miércoles 24/09 · 17:30h"></textarea>
-      </div>
-
-      <button class="primary" onclick="prepareReplyPrompt()">Abrir en Claude</button>
-      <button class="secondary" onclick="copyReplyPrompt()">Solo copiar el prompt</button>
-
-      <div class="field" style="margin-top:16px;">
-        <label for="reply-paste">Pega aquí la respuesta de Claude</label>
-        <textarea id="reply-paste" style="min-height:70px" placeholder="Pega el texto que te devuelva Claude…"></textarea>
-      </div>
-      <button class="secondary" onclick="applyReplyPaste()">Usar como borrador</button>
-
-      <div class="reply-suggestion empty" id="out-reply" style="margin-top:12px;">El borrador de respuesta aparecerá aquí.</div>
-      <div class="copybar" style="border:none; padding:10px 0 0; justify-content:space-between;">
-        <button class="ghost" onclick="markReplySent()">Marcar como enviada</button>
-        <button class="ghost" onclick="copyBlock('reply')">Copiar respuesta</button>
+    <div class="field">
+      <label>Conversación</label>
+      <div id="conversation-thread" class="conversation-thread">
+        <p class="empty-note">Todavía no has añadido ningún mensaje.</p>
       </div>
     </div>
 
-    <div class="panel">
-      <h2>Agendar visita</h2>
-      <p class="hint">Se guarda en tu Google Sheet si has configurado la agenda arriba; si no, se guarda solo en este navegador.</p>
-
-      <div class="field"><label for="v-cliente">Cliente</label><input id="v-cliente" placeholder="Nombre y apellidos"></div>
-      <div class="row2">
-        <div class="field"><label for="v-telefono">Teléfono</label><input id="v-telefono" placeholder="600 000 000"></div>
-        <div class="field"><label for="v-inmueble">Inmueble</label><input id="v-inmueble" placeholder="Introduce el inmueble"></div>
-      </div>
-      <div class="row2">
-        <div class="field"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date"></div>
-        <div class="field"><label for="v-hora">Hora</label><input id="v-hora" type="time"></div>
-      </div>
-      <button class="primary" onclick="scheduleVisit()">Añadir a la agenda</button>
-
-      <h2 style="margin-top:22px; font-size:1rem;">Próximas visitas</h2>
-      <div id="visits-list" style="margin-top:8px;"></div>
+    <div class="field">
+      <label for="f-new-msg">Nuevo mensaje del cliente</label>
+      <textarea id="f-new-msg" style="min-height:64px" placeholder="Pega aquí lo último que te ha escrito…"></textarea>
     </div>
+    <button class="secondary" onclick="addClientMessage()">Añadir a la conversación</button>
+
+    <div class="field" style="margin-top:14px;">
+      <label for="f-slots">Huecos disponibles para visita (uno por línea)</label>
+      <textarea id="f-slots" style="min-height:64px" placeholder="Introduce un hueco por línea, ej.: Miércoles 24/09 · 17:30h"></textarea>
+    </div>
+
+    <button class="primary" onclick="prepareReplyPrompt()">Abrir en Claude</button>
+    <button class="secondary" onclick="copyReplyPrompt()">Solo copiar el prompt</button>
+
+    <div class="field" style="margin-top:16px;">
+      <label for="reply-paste">Pega aquí la respuesta de Claude</label>
+      <textarea id="reply-paste" style="min-height:70px" placeholder="Pega el texto que te devuelva Claude…"></textarea>
+    </div>
+    <button class="secondary" onclick="applyReplyPaste()">Usar como borrador</button>
+
+    <div class="reply-suggestion empty" id="out-reply" style="margin-top:12px;">El borrador de respuesta aparecerá aquí.</div>
+    <div class="copybar" style="border:none; padding:10px 0 0; justify-content:space-between;">
+      <button class="ghost" onclick="markReplySent()">Marcar como enviada</button>
+      <button class="ghost" onclick="copyBlock('reply')">Copiar respuesta</button>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="view-visits">
+  <div class="panel">
+    <h2>Agendar visita</h2>
+    <p class="hint">Se guarda en tu Google Sheet si has configurado la agenda arriba; si no, se guarda solo en este navegador.</p>
+
+    <div class="field"><label for="v-cliente">Cliente</label><input id="v-cliente" placeholder="Nombre y apellidos"></div>
+    <div class="row2">
+      <div class="field"><label for="v-telefono">Teléfono</label><input id="v-telefono" placeholder="600 000 000"></div>
+      <div class="field"><label for="v-inmueble">Inmueble</label><input id="v-inmueble" placeholder="Introduce el inmueble"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date"></div>
+      <div class="field"><label for="v-hora">Hora</label><input id="v-hora" type="time"></div>
+    </div>
+    <button class="primary" onclick="scheduleVisit()">Añadir a la agenda</button>
+
+    <h2 style="margin-top:22px; font-size:1rem;">Próximas visitas</h2>
+    <div id="visits-list" style="margin-top:8px;"></div>
   </div>
 </section>
 
@@ -447,8 +465,10 @@
   window.switchView = function(name){
     document.getElementById('view-ads').classList.toggle('active', name==='ads');
     document.getElementById('view-leads').classList.toggle('active', name==='leads');
+    document.getElementById('view-visits').classList.toggle('active', name==='visits');
     document.getElementById('tab-ads').setAttribute('aria-selected', name==='ads');
     document.getElementById('tab-leads').setAttribute('aria-selected', name==='leads');
+    document.getElementById('tab-visits').setAttribute('aria-selected', name==='visits');
   };
 
   function val(id){ return document.getElementById(id).value.trim(); }
@@ -525,12 +545,13 @@
     if(parts.WHATSAPP) document.getElementById('out-whatsapp').textContent = parts.WHATSAPP;
 
     if(hasSheet()){
+      var newId = 'a' + Date.now();
       fetch(config.url, {
         method: 'POST',
         body: JSON.stringify({
           action: 'addAd', token: config.token,
           ad: {
-            id: 'a' + Date.now(), titulo: p.titulo, operacion: p.operacion, tipo: p.tipo,
+            id: newId, titulo: p.titulo, operacion: p.operacion, tipo: p.tipo,
             ubicacion: p.ubicacion, precio: p.precio, metros: p.metros,
             habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
             caracteristicas: p.caracteristicas, tono: p.tono,
@@ -539,7 +560,12 @@
         })
       }).then(function(r){ return r.json(); })
         .then(function(data){
-          if(data && data.ok){ toast('Tarjetas actualizadas y anuncio guardado en tu Sheet'); }
+          if(data && data.ok){
+            toast('Tarjetas actualizadas y anuncio guardado en tu Sheet');
+            currentAdId = newId;
+            adsCache = null;
+            updateActualizarState();
+          }
           else { toast('Tarjetas actualizadas (no se pudo guardar en el Sheet)'); }
         })
         .catch(function(){ toast('Tarjetas actualizadas (no se pudo guardar en el Sheet)'); });
@@ -549,6 +575,10 @@
   };
   // ---- search & load saved ads --------------------------------------------
   var adsCache = null;
+  var currentAdId = null;
+  function updateActualizarState(){
+    document.getElementById('btn-actualizar').disabled = !currentAdId;
+  }
   window.searchAds = function(){
     if(!hasSheet()){ toast('Configura la agenda arriba para buscar anuncios guardados'); return; }
     var q = val('ad-search').toLowerCase();
@@ -606,7 +636,63 @@
 
     document.getElementById('ad-search-results').innerHTML = '';
     document.getElementById('ad-search').value = '';
+    currentAdId = a.id;
+    updateActualizarState();
     toast('Anuncio cargado: ' + (a.titulo || ''));
+  };
+
+  window.updateCurrentAd = function(){
+    if(!currentAdId){ toast('Primero busca y carga un anuncio guardado'); return; }
+    if(!hasSheet()){ toast('Configura la agenda arriba para guardar en el Sheet'); return; }
+    var p = readProperty();
+    var portalBody = (document.querySelector('#out-portal .portal-body') || {}).textContent || '';
+    var instagram = document.getElementById('out-instagram').textContent || '';
+    var whatsapp = document.getElementById('out-whatsapp').textContent || '';
+    fetch(config.url, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'updateAd', token: config.token,
+        ad: {
+          id: currentAdId, titulo: p.titulo, operacion: p.operacion, tipo: p.tipo,
+          ubicacion: p.ubicacion, precio: p.precio, metros: p.metros,
+          habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
+          caracteristicas: p.caracteristicas, tono: p.tono,
+          portal: portalBody, instagram: instagram, whatsapp: whatsapp
+        }
+      })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){ toast('Anuncio actualizado en el Sheet'); adsCache = null; }
+        else { toast('No se pudo actualizar el anuncio en el Sheet'); }
+      })
+      .catch(function(){ toast('No se pudo actualizar el anuncio en el Sheet'); });
+  };
+
+  window.reloadFromSheet = function(){
+    if(!hasSheet()){ toast('Configura la agenda arriba para conectar con el Sheet'); return; }
+    adsCache = null;
+    toast('Recargando anuncios desde el Sheet…');
+    window.searchAds();
+  };
+
+  window.newAd = function(){
+    ['f-titulo','f-ubicacion','f-precio','f-metros','f-planta','f-hab','f-banos','f-caract'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.value = '';
+    });
+    var opEl = document.getElementById('f-operacion'); if(opEl) opEl.value = 'venta';
+    var tipoEl = document.getElementById('f-tipo'); if(tipoEl) tipoEl.value = 'Piso';
+    var estadoEl = document.getElementById('f-estado'); if(estadoEl) estadoEl.value = 'Reformado';
+    var tonoEl = document.getElementById('f-tono'); if(tonoEl) tonoEl.value = 'Profesional y cercano';
+    document.getElementById('out-portal').innerHTML = '';
+    document.getElementById('out-instagram').textContent = '';
+    document.getElementById('out-whatsapp').textContent = '';
+    var pasteEl = document.getElementById('ad-paste'); if(pasteEl) pasteEl.value = '';
+    document.getElementById('ad-search-results').innerHTML = '';
+    document.getElementById('ad-search').value = '';
+    currentAdId = null;
+    updateActualizarState();
+    toast('Formulario listo para un anuncio nuevo');
   };
 
   function buildPortalHTML(p, precioFmt, body){
@@ -636,6 +722,56 @@
     if(!text || /^Aquí aparecerá|^La respuesta sugerida/.test(text)){ toast('Todavía no hay texto que copiar'); return; }
     copyToClipboard(text);
   };
+
+  // ---- link conversation to a saved ad -------------------------------------
+  var linkedAd = null;
+
+  window.searchLinkAd = function(){
+    if(!hasSheet()){ toast('Configura la agenda arriba para buscar anuncios guardados'); return; }
+    var q = val('link-ad-search').toLowerCase();
+    var resultsEl = document.getElementById('link-ad-results');
+    resultsEl.innerHTML = '<p class="empty-note">Buscando…</p>';
+    fetchAds().then(function(ads){
+      var matches = q ? ads.filter(function(a){ return (a.titulo||'').toLowerCase().indexOf(q) !== -1; }) : ads;
+      renderLinkResults(matches);
+    }).catch(function(){
+      resultsEl.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>';
+    });
+  };
+  function renderLinkResults(list){
+    var el = document.getElementById('link-ad-results');
+    if(!list.length){ el.innerHTML = '<p class="empty-note">Sin resultados.</p>'; return; }
+    el.innerHTML = list.slice(0, 8).map(function(a){
+      return '<div class="ad-result" onclick="selectLinkAd(\'' + a.id + '\')">' +
+        '<div class="who">' + escapeHTML(a.titulo || '(sin título)') + '</div>' +
+        '<div class="what">' + escapeHTML(a.ubicacion || '') + (a.fecha ? ' · ' + escapeHTML(a.fecha) : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  window.selectLinkAd = function(id){
+    fetchAds().then(function(ads){
+      var a = ads.filter(function(x){ return x.id === id; })[0];
+      if(!a) return;
+      linkedAd = { id: a.id, titulo: a.titulo || '', ubicacion: a.ubicacion || '' };
+      renderLinkedChip();
+      document.getElementById('link-ad-results').innerHTML = '';
+      document.getElementById('link-ad-search').value = '';
+      var vInmueble = document.getElementById('v-inmueble');
+      if(vInmueble && !vInmueble.value) vInmueble.value = linkedAd.titulo;
+      toast('Conversación vinculada a: ' + linkedAd.titulo);
+    });
+  };
+  window.clearLinkAd = function(){
+    linkedAd = null;
+    renderLinkedChip();
+  };
+  function renderLinkedChip(){
+    var el = document.getElementById('linked-ad-chip');
+    if(!linkedAd){ el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<span class="badge ok">Vinculado: ' + escapeHTML(linkedAd.titulo) +
+      '</span> <button type="button" class="ghost" style="padding:2px 8px;" onclick="clearLinkAd()">Quitar</button>';
+  }
 
   // ---- conversation thread -------------------------------------------------
   var conversation = [];
@@ -672,7 +808,9 @@
   // ---- reply prompt -------------------------------------------------------
   function buildReplyPrompt(conv, slots){
     var thread = conv.map(function(m){ return (m.role === 'cliente' ? 'Cliente' : 'Yo (agente)') + ': ' + m.text; }).join('\n');
+    var adLine = linkedAd ? ("Inmueble sobre el que pregunta: " + linkedAd.titulo + (linkedAd.ubicacion ? (' (' + linkedAd.ubicacion + ')') : '') + "\n\n") : '';
     return "Eres un agente inmobiliario español respondiendo por WhatsApp a un cliente potencial.\n" +
+      adLine +
       "Esta es la conversación hasta ahora, en orden:\n" + thread +
       "\n\nHuecos de visita disponibles:\n" +
       slots.map(function(s){ return '- ' + s; }).join('\n') +
@@ -818,6 +956,7 @@
   // ---- boot ---------------------------------------------------------------
   loadConfig();
   loadVisits();
+  updateActualizarState();
   renderConversation();
   (function setDefaultDate(){
     var el = document.getElementById('v-fecha');
