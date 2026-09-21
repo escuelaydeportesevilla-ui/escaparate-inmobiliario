@@ -387,6 +387,16 @@
       <div class="field"><label for="v-telefono">Teléfono</label><input id="v-telefono" placeholder="600 000 000"></div>
       <div class="field"><label for="v-inmueble">Inmueble</label><input id="v-inmueble" placeholder="Introduce el inmueble"></div>
     </div>
+
+    <div class="field">
+      <label for="visit-ad-search">Buscar inmueble ya creado (por título interno)</label>
+      <div class="row2">
+        <input id="visit-ad-search" placeholder="Escribe parte del título…">
+        <button type="button" class="secondary" onclick="searchVisitAd()" style="margin-top:0;">Buscar</button>
+      </div>
+      <div id="visit-ad-results"></div>
+    </div>
+
     <div class="row2">
       <div class="field"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date"></div>
       <div class="field"><label for="v-hora">Hora</label><input id="v-hora" type="time"></div>
@@ -772,6 +782,40 @@
     el.innerHTML = '<span class="badge ok">Vinculado: ' + escapeHTML(linkedAd.titulo) +
       '</span> <button type="button" class="ghost" style="padding:2px 8px;" onclick="clearLinkAd()">Quitar</button>';
   }
+
+  // ---- link a visit to a saved ad -------------------------------------------
+  window.searchVisitAd = function(){
+    if(!hasSheet()){ toast('Configura la agenda arriba para buscar anuncios guardados'); return; }
+    var q = val('visit-ad-search').toLowerCase();
+    var resultsEl = document.getElementById('visit-ad-results');
+    resultsEl.innerHTML = '<p class="empty-note">Buscando…</p>';
+    fetchAds().then(function(ads){
+      var matches = q ? ads.filter(function(a){ return (a.titulo||'').toLowerCase().indexOf(q) !== -1; }) : ads;
+      renderVisitAdResults(matches);
+    }).catch(function(){
+      resultsEl.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>';
+    });
+  };
+  function renderVisitAdResults(list){
+    var el = document.getElementById('visit-ad-results');
+    if(!list.length){ el.innerHTML = '<p class="empty-note">Sin resultados.</p>'; return; }
+    el.innerHTML = list.slice(0, 8).map(function(a){
+      return '<div class="ad-result" onclick="selectVisitAd(\'' + a.id + '\')">' +
+        '<div class="who">' + escapeHTML(a.titulo || '(sin título)') + '</div>' +
+        '<div class="what">' + escapeHTML(a.ubicacion || '') + (a.fecha ? ' · ' + escapeHTML(a.fecha) : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  window.selectVisitAd = function(id){
+    fetchAds().then(function(ads){
+      var a = ads.filter(function(x){ return x.id === id; })[0];
+      if(!a) return;
+      document.getElementById('v-inmueble').value = a.titulo || '';
+      document.getElementById('visit-ad-results').innerHTML = '';
+      document.getElementById('visit-ad-search').value = '';
+      toast('Inmueble seleccionado: ' + (a.titulo || ''));
+    });
+  };
 
   // ---- conversation thread -------------------------------------------------
   var conversation = [];
