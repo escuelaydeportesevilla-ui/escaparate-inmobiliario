@@ -465,19 +465,22 @@
     <h2>Agendar visita</h2>
     <p class="hint">Se guarda en tu Google Sheet si has configurado la agenda arriba; si no, se guarda solo en este navegador.</p>
 
-    <div class="field"><label for="v-cliente">Cliente</label><input id="v-cliente" placeholder="Nombre y apellidos"></div>
-    <div class="row2">
-      <div class="field"><label for="v-telefono">Teléfono</label><input id="v-telefono" placeholder="600 000 000"></div>
-      <div class="field"><label for="v-inmueble">Inmueble</label><input id="v-inmueble" placeholder="Introduce el inmueble"></div>
-    </div>
-
     <div class="field">
-      <label for="visit-ad-search">Buscar inmueble ya creado (por título interno)</label>
+      <label for="visit-ad-search">Buscar inmueble ya creado (por título interno) — opcional</label>
       <div class="row2">
         <input id="visit-ad-search" placeholder="Escribe parte del título…">
         <button type="button" class="secondary" onclick="searchVisitAd()" style="margin-top:0;">Buscar</button>
       </div>
       <div id="visit-ad-results"></div>
+      <div id="visit-ad-chip" style="display:none; margin-top:8px;"></div>
+      <div id="visit-ad-clients" style="margin-top:8px;"></div>
+      <p class="hint" style="margin:8px 0 0;">Puedes dejarlo en blanco para una visita sin inmueble asociado.</p>
+    </div>
+
+    <div class="field"><label for="v-cliente">Cliente</label><input id="v-cliente" placeholder="Nombre y apellidos, o selecciónalo arriba"></div>
+    <div class="row2">
+      <div class="field"><label for="v-telefono">Teléfono</label><input id="v-telefono" placeholder="600 000 000"></div>
+      <div class="field"><label for="v-inmueble">Inmueble</label><input id="v-inmueble" placeholder="Se rellena solo, o escríbelo a mano"></div>
     </div>
 
     <div class="row2">
@@ -1284,15 +1287,53 @@
       '</div>';
     }).join('');
   }
+  var visitAdId = null;
   window.selectVisitAd = function(id){
     fetchAds().then(function(ads){
       var a = ads.filter(function(x){ return x.id === id; })[0];
       if(!a) return;
+      visitAdId = a.id;
       document.getElementById('v-inmueble').value = a.titulo || '';
       document.getElementById('visit-ad-results').innerHTML = '';
       document.getElementById('visit-ad-search').value = '';
+      document.getElementById('visit-ad-chip').style.display = 'block';
+      document.getElementById('visit-ad-chip').innerHTML = '<span class="badge ok">Inmueble: ' + escapeHTML(a.titulo || '') +
+        '</span> <button type="button" class="ghost" style="padding:2px 8px;" onclick="clearVisitAd()">Quitar</button>';
       toast('Inmueble seleccionado: ' + (a.titulo || ''));
+      loadClientsForVisitAd(a.id);
     });
+  };
+  window.clearVisitAd = function(){
+    visitAdId = null;
+    document.getElementById('visit-ad-chip').style.display = 'none';
+    document.getElementById('visit-ad-chip').innerHTML = '';
+    document.getElementById('visit-ad-clients').innerHTML = '';
+    document.getElementById('v-inmueble').value = '';
+  };
+  function loadClientsForVisitAd(adId){
+    if(!hasSheet()) return;
+    var el = document.getElementById('visit-ad-clients');
+    el.innerHTML = '<p class="empty-note">Buscando clientes de este anuncio…</p>';
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=clientsForAd&adId=' + encodeURIComponent(adId))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var clientes = (data && data.clientes) || [];
+        if(!clientes.length){ el.innerHTML = ''; return; }
+        el.innerHTML = '<p class="hint" style="margin:0 0 6px;">Clientes que ya han preguntado por este inmueble:</p>' +
+          clientes.map(function(c, i){
+            return '<button type="button" class="ghost" style="margin:0 6px 6px 0;" onclick="pickVisitClient(' + i + ')">' +
+              escapeHTML(c.cliente) + '</button>';
+          }).join('');
+        el._clientes = clientes;
+      })
+      .catch(function(){ el.innerHTML = ''; });
+  }
+  window.pickVisitClient = function(i){
+    var clientes = document.getElementById('visit-ad-clients')._clientes || [];
+    var c = clientes[i];
+    if(!c) return;
+    document.getElementById('v-cliente').value = c.cliente;
+    toast('Cliente seleccionado: ' + c.cliente);
   };
 
   // ---- conversation thread -------------------------------------------------
@@ -1442,7 +1483,7 @@
   window.scheduleVisit = function(){
     var cliente = val('v-cliente'), telefono = val('v-telefono'), inmueble = val('v-inmueble');
     var fecha = document.getElementById('v-fecha').value, hora = document.getElementById('v-hora').value;
-    if(!cliente || !inmueble || !fecha || !hora){ toast('Introduce al menos cliente, inmueble, fecha y hora'); return; }
+    if(!cliente || !fecha || !hora){ toast('Introduce al menos cliente, fecha y hora'); return; }
     var visit = { id: 'v' + Date.now(), cliente: cliente, telefono: telefono, inmueble: inmueble, fecha: fecha, hora: hora };
 
     if(hasSheet()){
@@ -1462,6 +1503,7 @@
     }
     document.getElementById('v-cliente').value = '';
     document.getElementById('v-telefono').value = '';
+    clearVisitAd();
   };
 
   window.removeVisit = function(id){
