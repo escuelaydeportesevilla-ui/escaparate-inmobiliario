@@ -225,6 +225,26 @@
 </head>
 <body>
 
+<div class="modal-overlay" id="login-gate" onclick="event.stopPropagation();">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+    <div class="modal-head">
+      <h2 id="gate-title">Acceder a Escaparate Inmobiliario</h2>
+    </div>
+    <p class="hint" style="margin:0;">Introduce la URL del Web App y el token de tu agenda (Google Sheet). Se guardan solo en este navegador.</p>
+    <div class="field">
+      <label for="gate-url">URL del Web App (termina en /exec)</label>
+      <input id="gate-url" placeholder="https://script.google.com/macros/s/…/exec">
+    </div>
+    <div class="field">
+      <label for="gate-token">Token</label>
+      <input id="gate-token" type="password" placeholder="tu-token-secreto" onkeydown="if(event.key==='Enter') gateLogin();">
+    </div>
+    <div class="modal-actions">
+      <button class="primary" style="margin-top:0;" onclick="gateLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <header class="top">
   <div class="brandmark">
     <img class="logo" src="logo.png" alt="Escaparate Inmobiliario">
@@ -238,6 +258,10 @@
     <button role="tab" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas</button>
     <button role="tab" id="tab-visits" aria-selected="false" onclick="switchView('visits')">Visitas</button>
   </nav>
+  <div style="display:flex; gap:8px;">
+    <button class="ghost" onclick="refreshAll()" title="Recargar anuncios, visitas y conversaciones desde el Sheet">Refrescar</button>
+    <button class="ghost" onclick="logout()" title="Cerrar sesión en este navegador">Cerrar sesión</button>
+  </div>
 </header>
 
 <details class="config" id="config-panel">
@@ -525,8 +549,47 @@
     document.getElementById('cfg-telefono').value = config.telefono || '';
     updateConfigBadge();
     updateBrandBadge();
-    if(hasSheet()) loadBrandFromSheet();
+    if(hasSheet()){
+      hideGate();
+      loadBrandFromSheet();
+    } else {
+      showGate();
+    }
   }
+  function showGate(){
+    document.getElementById('gate-url').value = config.url || '';
+    document.getElementById('login-gate').classList.add('show');
+  }
+  function hideGate(){
+    document.getElementById('login-gate').classList.remove('show');
+  }
+  window.gateLogin = function(){
+    var url = document.getElementById('gate-url').value.trim();
+    var token = document.getElementById('gate-token').value.trim();
+    if(!url || !token){ toast('Introduce la URL y el token'); return; }
+    config.url = url;
+    config.token = token;
+    try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
+    document.getElementById('cfg-url').value = url;
+    document.getElementById('cfg-token').value = token;
+    updateConfigBadge();
+    hideGate();
+    toast('Sesión iniciada');
+    refreshAll();
+  };
+  window.logout = function(){
+    if(!confirm('¿Cerrar sesión en este navegador? Tendrás que volver a introducir la URL y el token para entrar.')) return;
+    try{ localStorage.removeItem(CONFIG_KEY); }catch(e){}
+    location.reload();
+  };
+  window.refreshAll = function(){
+    if(!hasSheet()){ toast('Configura la agenda para poder refrescar'); return; }
+    adsCache = null;
+    loadBrandFromSheet();
+    loadVisits();
+    if(linkedAd && val('conv-cliente')) loadClienteConversation();
+    toast('Datos actualizados');
+  };
   // Trae logo/agente/teléfono guardados en el Sheet (Propiedades del script)
   // y los deja como valores por defecto en este navegador, salvo que el
   // usuario ya tenga algo distinto guardado localmente sin sincronizar.
@@ -559,6 +622,7 @@
     toast('Datos guardados');
     loadVisits();
     if(hasSheet()){
+      hideGate();
       fetch(config.url, {
         method: 'POST',
         body: JSON.stringify({
@@ -1295,15 +1359,30 @@
   function buildReplyPrompt(conv, slots){
     var thread = conv.map(function(m){ return (m.role === 'cliente' ? 'Cliente' : 'Yo (agente)') + ': ' + m.text; }).join('\n');
     var adLine = linkedAd ? ("Inmueble sobre el que pregunta: " + linkedAd.titulo + (linkedAd.ubicacion ? (' (' + linkedAd.ubicacion + ')') : '') + "\n\n") : '';
+
+    var slotsBlock, slotsRule;
+    if(slots.length){
+      slotsBlock = "\n\nHuecos de visita disponibles (usa SOLO estos, copiados tal cual, sin inventar ni cambiar fechas u horas):\n" +
+        slots.map(function(s){ return '- ' + s; }).join('\n');
+      slotsRule = "- Si por el contexto de la conversación el cliente ya está listo para agendar una visita (la ha pedido, o " +
+        "está claramente interesado y falta cerrar fecha), propón exactamente 2 huecos de la lista anterior (o el único " +
+        "que haya, si solo hay uno) y pregunta cuál le viene mejor.\n" +
+        "- Si el cliente todavía está preguntando por precio, características u otros detalles y no ha pedido visita, " +
+        "NO menciones los huecos: responde solo a lo que pregunta.\n";
+    } else {
+      slotsBlock = "\n\nNo hay huecos de visita cargados todavía.";
+      slotsRule = "- No hay huecos que ofrecer. Si el cliente pide visitar, dile que le confirmarás fecha y hora en breve, " +
+        "sin inventar ningún horario.\n";
+    }
+
     return "Eres un agente inmobiliario español respondiendo por WhatsApp a un cliente potencial.\n" +
       adLine +
       "Esta es la conversación hasta ahora, en orden:\n" + thread +
-      "\n\nHuecos de visita disponibles:\n" +
-      slots.map(function(s){ return '- ' + s; }).join('\n') +
+      slotsBlock +
       "\n\nRedacta SOLO el texto de tu próxima respuesta (3-5 frases), cercana y profesional, que continúe " +
-      "la conversación de forma natural, confirme disponibilidad del inmueble si procede y proponga 2 de esos " +
-      "huecos concretos cuando toque, pidiendo que confirme cuál le viene mejor. Sin emojis ni hashtags. " +
-      "No añadas explicaciones, solo el mensaje.";
+      "la conversación de forma natural y responda concretamente a lo último que ha dicho el cliente.\n" +
+      slotsRule +
+      "Sin emojis ni hashtags. No añadas explicaciones ni notas, solo el mensaje final tal cual se enviaría.";
   }
   window.prepareReplyPrompt = function(){
     if(!conversation.length){ toast('Añade primero al menos un mensaje del cliente'); return; }
