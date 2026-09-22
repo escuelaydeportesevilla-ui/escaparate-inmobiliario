@@ -507,6 +507,27 @@
     document.getElementById('cfg-telefono').value = config.telefono || '';
     updateConfigBadge();
     updateBrandBadge();
+    if(hasSheet()) loadBrandFromSheet();
+  }
+  // Trae logo/agente/teléfono guardados en el Sheet (Propiedades del script)
+  // y los deja como valores por defecto en este navegador, salvo que el
+  // usuario ya tenga algo distinto guardado localmente sin sincronizar.
+  function loadBrandFromSheet(){
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=brand')
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.brand){
+          config.logoUrl = data.brand.logoUrl || '';
+          config.agente = data.brand.agente || '';
+          config.telefono = data.brand.telefono || '';
+          document.getElementById('cfg-logo-url').value = config.logoUrl;
+          document.getElementById('cfg-agente').value = config.agente;
+          document.getElementById('cfg-telefono').value = config.telefono;
+          try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
+          updateBrandBadge();
+        }
+      })
+      .catch(function(){});
   }
   window.saveConfig = function(){
     config.url = document.getElementById('cfg-url').value.trim();
@@ -519,6 +540,17 @@
     updateBrandBadge();
     toast('Datos guardados');
     loadVisits();
+    if(hasSheet()){
+      fetch(config.url, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'saveBrand', token: config.token,
+          brand: { logoUrl: config.logoUrl, agente: config.agente, telefono: config.telefono }
+        })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){ if(data && data.ok) toast('Sincronizado en el Sheet'); })
+        .catch(function(){});
+    }
   };
   function updateConfigBadge(){
     var b = document.getElementById('config-badge');
