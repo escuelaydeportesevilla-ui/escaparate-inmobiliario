@@ -1092,12 +1092,32 @@
       var vInmueble = document.getElementById('v-inmueble');
       if(vInmueble && !vInmueble.value) vInmueble.value = linkedAd.titulo;
       toast('Conversación vinculada a: ' + linkedAd.titulo);
+      loadConversationFromSheet(linkedAd.id);
     });
   };
   window.clearLinkAd = function(){
     linkedAd = null;
+    conversation = [];
+    renderConversation();
     renderLinkedChip();
   };
+  function loadConversationFromSheet(adId){
+    if(!hasSheet()) return;
+    document.getElementById('conversation-thread').innerHTML = '<p class="empty-note">Cargando conversación…</p>';
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=conversation&adId=' + encodeURIComponent(adId))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        conversation = (data && data.conversation) ? data.conversation.map(function(m){
+          return { id: m.id, role: m.role, text: m.texto };
+        }) : [];
+        renderConversation();
+      })
+      .catch(function(){
+        conversation = [];
+        renderConversation();
+        toast('No se pudo cargar la conversación guardada');
+      });
+  }
   function renderLinkedChip(){
     var el = document.getElementById('linked-ad-chip');
     if(!linkedAd){ el.style.display = 'none'; el.innerHTML = ''; return; }
@@ -1146,15 +1166,41 @@
   window.addClientMessage = function(){
     var text = document.getElementById('f-new-msg').value.trim();
     if(!text){ toast('Escribe o pega el mensaje del cliente'); return; }
-    conversation.push({ role: 'cliente', text: text });
+    var m = { role: 'cliente', text: text };
+    conversation.push(m);
     document.getElementById('f-new-msg').value = '';
     renderConversation();
+    saveMessage(m);
   };
 
   window.removeMessage = function(index){
+    var m = conversation[index];
     conversation.splice(index, 1);
     renderConversation();
+    if(m && m.id && hasSheet()){
+      fetch(config.url, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'deleteMessage', token: config.token, id: m.id })
+      }).catch(function(){});
+    }
   };
+
+  // Guarda un mensaje en el Sheet, vinculado al anuncio activo. Sin
+  // anuncio vinculado o sin Sheet configurado, el mensaje solo queda en
+  // memoria (se pierde al recargar), como antes.
+  function saveMessage(m){
+    if(!linkedAd){ toast('Añadido (vincula un anuncio arriba para guardarlo)'); return; }
+    if(!hasSheet()) return;
+    fetch(config.url, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'addMessage', token: config.token,
+        message: { adId: linkedAd.id, role: m.role, texto: m.text }
+      })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){ if(data && data.ok){ m.id = data.id; } })
+      .catch(function(){});
+  }
 
   function renderConversation(){
     var el = document.getElementById('conversation-thread');
@@ -1206,12 +1252,14 @@
   window.markReplySent = function(){
     var out = document.getElementById('out-reply');
     if(out.classList.contains('empty') || !out.textContent.trim()){ toast('Todavía no hay una respuesta que marcar como enviada'); return; }
-    conversation.push({ role: 'yo', text: out.textContent.trim() });
+    var m = { role: 'yo', text: out.textContent.trim() };
+    conversation.push(m);
     renderConversation();
     out.textContent = 'El borrador de respuesta aparecerá aquí.';
     out.classList.add('empty');
     document.getElementById('reply-paste').value = '';
     toast('Añadida a la conversación');
+    saveMessage(m);
   };
 
   // ---- agenda: Sheet backend or localStorage fallback --------------------
