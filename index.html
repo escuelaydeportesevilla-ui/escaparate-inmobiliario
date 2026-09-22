@@ -304,7 +304,14 @@
       <article class="preview-card">
         <div class="preview-head"><span class="tag">Portal inmobiliario</span></div>
         <div class="preview-body" id="out-portal"><p class="placeholder">Aquí aparecerá el anuncio largo, listo para Idealista o Fotocasa.</p></div>
-        <div class="copybar"><button class="ghost" onclick="copyBlock('portal')">Copiar texto</button></div>
+        <div class="field" style="padding:0 18px; margin-top:2px;">
+          <label for="portal-img-url">URL de imagen (Google Drive, opcional, para el Word)</label>
+          <input id="portal-img-url" placeholder="Pega el enlace para compartir de Google Drive">
+        </div>
+        <div class="copybar" style="gap:8px;">
+          <button class="ghost" onclick="copyBlock('portal')">Copiar texto</button>
+          <button class="ghost" onclick="exportPortalWord()">Exportar a Word</button>
+        </div>
       </article>
 
       <article class="preview-card">
@@ -429,6 +436,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.iife.js"></script>
 <script>
 (function(){
   "use strict";
@@ -732,6 +740,135 @@
     if(!text || /^Aquí aparecerá|^La respuesta sugerida/.test(text)){ toast('Todavía no hay texto que copiar'); return; }
     copyToClipboard(text);
   };
+
+  // ---- exportar Portal a Word (A4 horizontal, imagen en el margen derecho) --
+  function driveDirectUrls(rawUrl){
+    var url = (rawUrl || '').trim();
+    if(!url) return [];
+    var m = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/) || url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+    var id = m ? m[1] : null;
+    if(!id) return [url];
+    return [
+      'https://drive.google.com/uc?export=view&id=' + id,
+      'https://lh3.googleusercontent.com/d/' + id
+    ];
+  }
+  function fetchImageBlob(rawUrl){
+    var candidates = driveDirectUrls(rawUrl);
+    function tryNext(i){
+      if(i >= candidates.length) return Promise.reject(new Error('no-image'));
+      return fetch(candidates[i], { mode: 'cors' })
+        .then(function(r){ if(!r.ok) throw new Error('bad-status'); return r.blob(); })
+        .then(function(b){ if(b && b.type && b.type.indexOf('image') === -1) throw new Error('not-image'); return b; })
+        .catch(function(){ return tryNext(i + 1); });
+    }
+    return tryNext(0);
+  }
+  // Redibuja la imagen en un <canvas> y la reexporta como PNG: así el
+  // documento Word siempre recibe un PNG real, sea cual sea el formato
+  // original (jpg, webp…), evitando imágenes corruptas al abrir el .docx.
+  function imageInfo(blob){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function(){
+        var w = img.naturalWidth || 800, h = img.naturalHeight || 600;
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(function(pngBlob){
+          if(!pngBlob){ reject(new Error('canvas-fail')); return; }
+          pngBlob.arrayBuffer().then(function(buf){ resolve({ data: buf, w: w, h: h }); }).catch(reject);
+        }, 'image/png');
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('img-load-fail')); };
+      img.src = url;
+    });
+  }
+  window.exportPortalWord = function(){
+    if(typeof docx === 'undefined'){ toast('No se pudo cargar la librería de Word (revisa tu conexión a internet)'); return; }
+    var portalEl = document.getElementById('out-portal');
+    var titleEl = portalEl.querySelector('.portal-title');
+    if(!titleEl){ toast('Genera primero el anuncio de Portal'); return; }
+    var titulo = titleEl.textContent || 'Anuncio';
+    var precio = (portalEl.querySelector('.portal-price') || {}).textContent || '';
+    var specs = Array.prototype.map.call(portalEl.querySelectorAll('.portal-specs span'), function(s){ return s.textContent; }).join(' · ');
+    var body = (portalEl.querySelector('.portal-body') || {}).textContent || '';
+    var imgUrl = val('portal-img-url');
+
+    toast('Generando documento Word…');
+    var imagePromise = imgUrl ? fetchImageBlob(imgUrl).then(imageInfo) : Promise.resolve(null);
+
+    imagePromise.catch(function(){
+      toast('No se pudo descargar la imagen (comprueba que el enlace de Drive sea público: "Cualquier usuario con el enlace"). Se genera el Word sin foto.');
+      return null;
+    }).then(function(image){
+      buildAndDownloadPortalDocx(titulo, precio, specs, body, image);
+    });
+  };
+  function buildAndDownloadPortalDocx(titulo, precio, specs, body, image){
+    var D = docx;
+    var children = [];
+    children.push(new D.Paragraph({ text: titulo, heading: D.HeadingLevel.HEADING_1 }));
+    if(precio) children.push(new D.Paragraph({ children: [ new D.TextRun({ text: precio, bold: true, size: 28 }) ] }));
+    if(specs) children.push(new D.Paragraph({ children: [ new D.TextRun({ text: specs, color: '666666' }) ], spacing: { after: 200 } }));
+    (body || '').split('\n').forEach(function(line){
+      children.push(new D.Paragraph({ children: [ new D.TextRun(line) ], spacing: { after: 120 } }));
+    });
+
+    var rightCellChildren;
+    if(image){
+      var maxW = 420, maxH = 620;
+      var ratio = Math.min(maxW / image.w, maxH / image.h, 1);
+      var w = Math.max(1, Math.round(image.w * ratio)), h = Math.max(1, Math.round(image.h * ratio));
+      rightCellChildren = [ new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [
+        new D.ImageRun({ data: image.data, transformation: { width: w, height: h }, type: 'png' })
+      ] }) ];
+    } else {
+      rightCellChildren = [ new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [
+        new D.TextRun({ text: '(sin imagen)', color: '999999' })
+      ] }) ];
+    }
+
+    var noBorder = { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+    var table = new D.Table({
+      width: { size: 100, type: D.WidthType.PERCENTAGE },
+      borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+      rows: [ new D.TableRow({ children: [
+        new D.TableCell({ width: { size: 50, type: D.WidthType.PERCENTAGE }, margins: { right: 300 }, children: children }),
+        new D.TableCell({ width: { size: 50, type: D.WidthType.PERCENTAGE }, verticalAlign: D.VerticalAlign.CENTER, children: rightCellChildren })
+      ] }) ]
+    });
+
+    var doc = new D.Document({
+      sections: [{
+        properties: {
+          page: {
+            size: { orientation: D.PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
+            margin: { top: 720, bottom: 720, left: 720, right: 720 }
+          }
+        },
+        children: [ table ]
+      }]
+    });
+
+    D.Packer.toBlob(doc).then(function(blob){
+      var a = document.createElement('a');
+      var fname = (titulo || 'anuncio').toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'anuncio';
+      a.href = URL.createObjectURL(blob);
+      a.download = fname + '.docx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast('Word descargado');
+    }).catch(function(){
+      toast('No se pudo generar el documento Word');
+    });
+  }
 
   // ---- link conversation to a saved ad -------------------------------------
   var linkedAd = null;
