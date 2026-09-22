@@ -221,9 +221,61 @@
   .docx-preview-image img{max-width:100%; max-height:100%; object-fit:contain;}
   .docx-preview-image .placeholder{color:#999; font-size:.8rem; font-family:inherit;}
   @media (max-width:600px){ .docx-preview-page{font-size:.85em;} .docx-preview-header img{max-height:40px; max-width:110px;} }
+
+  .login-overlay{background:var(--surface-2); z-index:100;}
+  .login-overlay .modal-card{align-items:center; text-align:center;}
+  .login-overlay .field{width:100%;}
+  .login-overlay button.primary{width:100%; margin-top:6px;}
+  .admin-client-item{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
+  .admin-client-item .who{font-weight:600;}
+  .admin-client-item .what{font-size:.78rem; color:var(--ink-soft); overflow-wrap:anywhere;}
+  .admin-client-item .actions{display:flex; gap:6px; flex-shrink:0;}
+  .admin-client-item .actions button{width:auto; margin-top:0; padding:5px 10px; font-size:.78rem;}
 </style>
 </head>
 <body>
+
+<div class="modal-overlay show login-overlay" id="login-gate">
+  <div class="modal-card" style="max-width:380px; text-align:center;">
+    <img src="logo.png" alt="" style="width:64px; height:64px; border-radius:14px; margin:0 auto 6px; box-shadow:var(--shadow);">
+    <h2 style="margin:0;">Escaparate Inmobiliario</h2>
+    <p class="hint" style="margin:0 0 4px;">Introduce tu nombre y la contraseña que te ha facilitado tu proveedor.</p>
+    <div class="field" style="text-align:left;"><label for="login-nombre">Nombre</label><input id="login-nombre" placeholder="Introduce tu nombre" autocomplete="username"></div>
+    <div class="field" style="text-align:left;"><label for="login-codigo">Contraseña</label><input id="login-codigo" type="password" placeholder="Introduce tu contraseña" autocomplete="current-password"></div>
+    <button class="primary" onclick="clientLogin()">Entrar</button>
+    <p class="hint" id="login-error" style="display:none; color:#b3392f;"></p>
+    <button type="button" class="ghost" style="margin-top:18px; font-size:.78rem;" onclick="promptAdminUnlock()">Acceso administrador</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="admin-panel">
+  <div class="modal-card wide" style="max-width:760px;" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2>Panel de administrador — Clientes</h2>
+      <button class="modal-close" onclick="closeAdminPanel()" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="hint" style="margin:0;">Da de alta aquí a cada inmobiliaria: su nombre de acceso, contraseña, y la URL/token de SU Google Sheet (el que le configuraste con <code>apps-script/Code.gs</code>).</p>
+    <div id="admin-clients-list"><p class="empty-note">Cargando clientes…</p></div>
+
+    <h3 style="margin:6px 0 0; font-size:1rem;">Nuevo cliente / editar seleccionado</h3>
+    <input type="hidden" id="admin-cliente-id">
+    <div class="row2">
+      <div class="field"><label for="admin-nombre">Nombre de acceso</label><input id="admin-nombre" placeholder="Introduce el nombre de acceso"></div>
+      <div class="field"><label for="admin-codigo">Contraseña</label><input id="admin-codigo" placeholder="Introduce la contraseña"></div>
+    </div>
+    <div class="field"><label for="admin-sheet-url">URL del Web App de su Sheet (termina en /exec)</label><input id="admin-sheet-url" placeholder="https://script.google.com/macros/s/…/exec"></div>
+    <div class="field"><label for="admin-sheet-token">Token de su Sheet</label><input id="admin-sheet-token" placeholder="su-token-secreto"></div>
+    <div class="field"><label for="admin-logo-url">URL del logo (Google Drive, opcional)</label><input id="admin-logo-url" placeholder="Pega el enlace para compartir de Google Drive"></div>
+    <div class="row2">
+      <div class="field"><label for="admin-agente">Nombre del agente</label><input id="admin-agente" placeholder="Introduce el nombre del agente"></div>
+      <div class="field"><label for="admin-telefono">Teléfono de contacto</label><input id="admin-telefono" placeholder="600 000 000"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="clearAdminForm()">Limpiar formulario</button>
+      <button class="primary" style="margin-top:0;" onclick="saveAdminClient()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
 
 <header class="top">
   <div class="brandmark">
@@ -238,9 +290,10 @@
     <button role="tab" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas</button>
     <button role="tab" id="tab-visits" aria-selected="false" onclick="switchView('visits')">Visitas</button>
   </nav>
+  <button type="button" class="ghost" id="logout-btn" style="margin-left:8px;" onclick="clientLogout()" title="Cerrar sesión">Salir</button>
 </header>
 
-<details class="config" id="config-panel">
+<details class="config" id="config-panel" style="display:none;">
   <summary>Configuración de la agenda (Google Sheet) <span class="badge off" id="config-badge">sin configurar</span></summary>
   <p class="hint" style="margin:0 0 12px;">Pega aquí la URL del Web App de Apps Script y el token que definiste (ver <code>apps-script/Code.gs</code>). Se guardan solo en este navegador.</p>
   <div class="field">
@@ -254,7 +307,7 @@
   <button class="secondary" onclick="saveConfig()">Guardar configuración</button>
 </details>
 
-<details class="config" id="brand-panel">
+<details class="config" id="brand-panel" style="display:none;">
   <summary>Datos de la inmobiliaria (para el Word) <span class="badge off" id="brand-badge">sin configurar</span></summary>
   <p class="hint" style="margin:0 0 12px;">Se usan como encabezado en el documento Word que exportas desde la tarjeta Portal inmobiliario. Se guardan solo en este navegador.</p>
   <div class="field">
@@ -491,6 +544,11 @@
 
   var CONFIG_KEY = 'escaparate_config_v1';
   var VISITS_KEY = 'escaparate_visits_v1';
+  var SESSION_KEY = 'escaparate_session_v1';
+  var ADMIN_LOCAL_KEY = 'escaparate_admin_local_v1';
+  // Técnico: pega aquí la URL /exec del Apps Script MAESTRO (apps-script/AdminCode.gs),
+  // el mismo para todos los clientes. Sin esto, nadie puede iniciar sesión.
+  var ADMIN_API_URL = '';
   var config = { url: '', token: '', logoUrl: '', agente: '', telefono: '' };
   var visits = [];
 
@@ -517,9 +575,46 @@
     try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
     updateConfigBadge();
     updateBrandBadge();
-    toast('Datos guardados');
+    if(hasSheet()){
+      fetch(config.url, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'saveBrand', token: config.token,
+          brand: { logoUrl: config.logoUrl, agente: config.agente, telefono: config.telefono }
+        })
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if(data && data.ok){ toast('Datos guardados (también en tu Sheet)'); }
+          else { toast('Datos guardados en este navegador (no se pudo guardar en el Sheet)'); }
+        })
+        .catch(function(){ toast('Datos guardados en este navegador (no se pudo guardar en el Sheet)'); });
+    } else {
+      toast('Datos guardados en este navegador. Configura la agenda arriba para guardarlos también en el Sheet.');
+    }
     loadVisits();
   };
+  // Trae logo/agente/teléfono desde el Sheet y los usa para autocompletar
+  // el formulario, así estos datos viajan con el Sheet y no solo con el
+  // navegador (funcionan en cualquier dispositivo que se conecte a él).
+  function loadBrandFromSheet(){
+    if(!hasSheet()) return;
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=brand')
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data || !data.brand) return;
+        var b = data.brand;
+        if(!b.logoUrl && !b.agente && !b.telefono) return;
+        config.logoUrl = b.logoUrl || '';
+        config.agente = b.agente || '';
+        config.telefono = b.telefono || '';
+        try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
+        document.getElementById('cfg-logo-url').value = config.logoUrl;
+        document.getElementById('cfg-agente').value = config.agente;
+        document.getElementById('cfg-telefono').value = config.telefono;
+        updateBrandBadge();
+      })
+      .catch(function(){ /* si falla, seguimos con lo que hubiera en este navegador */ });
+  }
   function updateConfigBadge(){
     var b = document.getElementById('config-badge');
     if(config.url && config.token){ b.textContent = 'conectado'; b.className = 'badge ok'; }
@@ -1288,11 +1383,189 @@
     return parts[2] + '/' + parts[1];
   }
 
+  // ---- acceso de cliente (nombre + contraseña) -----------------------------
+  function showLoginGate(){ document.getElementById('login-gate').classList.add('show'); }
+  function hideLoginGate(){ document.getElementById('login-gate').classList.remove('show'); }
+  function checkSession(){
+    // Mientras no se configure ADMIN_API_URL (el administrador todavía no ha
+    // desplegado el servidor de acceso), la app funciona en "modo clásico":
+    // sin login, con los paneles de configuración de siempre, exactamente
+    // como hasta ahora. El login solo se activa cuando ADMIN_API_URL tiene
+    // una URL real.
+    if(!ADMIN_API_URL){
+      hideLoginGate();
+      document.getElementById('config-panel').style.display = '';
+      document.getElementById('brand-panel').style.display = '';
+      document.getElementById('logout-btn').style.display = 'none';
+      return;
+    }
+    var sess = null;
+    try{ var raw = localStorage.getItem(SESSION_KEY); if(raw) sess = JSON.parse(raw); }catch(e){}
+    if(sess && sess.nombre && config.url && config.token){
+      hideLoginGate();
+      var nombreEl = document.getElementById('login-nombre');
+      if(nombreEl) nombreEl.value = sess.nombre;
+    } else {
+      showLoginGate();
+    }
+  }
+  window.clientLogin = function(){
+    var nombre = val('login-nombre');
+    var codigo = document.getElementById('login-codigo').value.trim();
+    var errEl = document.getElementById('login-error');
+    errEl.style.color = '#b3392f';
+    if(!nombre || !codigo){ errEl.textContent = 'Escribe tu nombre y tu contraseña'; errEl.style.display = 'block'; return; }
+    if(!ADMIN_API_URL){ errEl.textContent = 'Esta app todavía no tiene configurado el acceso. Contacta con tu proveedor.'; errEl.style.display = 'block'; return; }
+    errEl.style.color = ''; errEl.textContent = 'Comprobando…'; errEl.style.display = 'block';
+    fetch(ADMIN_API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', nombre: nombre, codigo: codigo }) })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok && data.config){
+          config.url = data.config.url || '';
+          config.token = data.config.token || '';
+          config.logoUrl = data.config.logoUrl || '';
+          config.agente = data.config.agente || '';
+          config.telefono = data.config.telefono || '';
+          try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
+          try{ localStorage.setItem(SESSION_KEY, JSON.stringify({ nombre: nombre })); }catch(e){}
+          document.getElementById('login-codigo').value = '';
+          errEl.style.display = 'none';
+          updateConfigBadge();
+          updateBrandBadge();
+          loadVisits();
+          hideLoginGate();
+        } else {
+          errEl.style.color = '#b3392f';
+          errEl.textContent = 'Nombre o contraseña incorrectos';
+          errEl.style.display = 'block';
+        }
+      })
+      .catch(function(){
+        errEl.style.color = '#b3392f';
+        errEl.textContent = 'No se pudo conectar. Revisa tu conexión a internet.';
+        errEl.style.display = 'block';
+      });
+  };
+  window.clientLogout = function(){
+    try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+    try{ localStorage.removeItem(CONFIG_KEY); }catch(e){}
+    location.reload();
+  };
+
+  // ---- panel de administrador (alta de clientes) ---------------------------
+  function adminToken(){
+    try{
+      var raw = localStorage.getItem(ADMIN_LOCAL_KEY);
+      if(raw) return (JSON.parse(raw) || {}).adminToken || '';
+    }catch(e){}
+    return '';
+  }
+  window.promptAdminUnlock = function(){
+    if(!ADMIN_API_URL){ alert('Esta app todavía no tiene configurado el servidor de administración.'); return; }
+    var pass = window.prompt('Contraseña de administrador:');
+    if(pass === null || pass === '') return;
+    fetch(ADMIN_API_URL, { method: 'POST', body: JSON.stringify({ action: 'adminAuth', adminToken: pass }) })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){
+          try{ localStorage.setItem(ADMIN_LOCAL_KEY, JSON.stringify({ adminToken: pass })); }catch(e){}
+          openAdminPanel();
+        } else {
+          alert('Contraseña de administrador incorrecta');
+        }
+      })
+      .catch(function(){ alert('No se pudo conectar con el servidor de administración'); });
+  };
+  function openAdminPanel(){
+    hideLoginGate();
+    document.getElementById('admin-panel').classList.add('show');
+    loadAdminClients();
+  }
+  window.closeAdminPanel = function(){
+    document.getElementById('admin-panel').classList.remove('show');
+    var hasSession = false;
+    try{ hasSession = !!JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }catch(e){}
+    if(!hasSession) showLoginGate();
+  };
+  function loadAdminClients(){
+    var listEl = document.getElementById('admin-clients-list');
+    listEl.innerHTML = '<p class="empty-note">Cargando clientes…</p>';
+    fetch(ADMIN_API_URL, { method: 'POST', body: JSON.stringify({ action: 'adminList', adminToken: adminToken() }) })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data || !data.ok){ listEl.innerHTML = '<p class="empty-note">No se pudo cargar la lista de clientes.</p>'; return; }
+        renderAdminClients(data.clientes || []);
+      })
+      .catch(function(){ listEl.innerHTML = '<p class="empty-note">No se pudo conectar con el servidor de administración.</p>'; });
+  }
+  function renderAdminClients(list){
+    var listEl = document.getElementById('admin-clients-list');
+    if(!list.length){ listEl.innerHTML = '<p class="empty-note">Todavía no has dado de alta ningún cliente.</p>'; return; }
+    listEl.innerHTML = list.map(function(c){
+      return '<div class="admin-client-item">' +
+        '<div><div class="who">' + escapeHTML(c.nombre || '') + '</div>' +
+        '<div class="what">' + escapeHTML(c.agente || '') + (c.telefono ? ' · ' + escapeHTML(c.telefono) : '') + '</div></div>' +
+        '<div class="actions">' +
+          '<button type="button" class="ghost" onclick="editAdminClient(\'' + c.id + '\')">Editar</button>' +
+          '<button type="button" class="ghost" onclick="deleteAdminClient(\'' + c.id + '\', \'' + escapeHTML((c.nombre||'').replace(/'/g,"")) + '\')">Eliminar</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    window._adminClientsCache = list;
+  }
+  window.editAdminClient = function(id){
+    var c = (window._adminClientsCache || []).filter(function(x){ return x.id === id; })[0];
+    if(!c) return;
+    document.getElementById('admin-cliente-id').value = c.id;
+    document.getElementById('admin-nombre').value = c.nombre || '';
+    document.getElementById('admin-codigo').value = c.codigo || '';
+    document.getElementById('admin-sheet-url').value = c.url || '';
+    document.getElementById('admin-sheet-token').value = c.token || '';
+    document.getElementById('admin-logo-url').value = c.logoUrl || '';
+    document.getElementById('admin-agente').value = c.agente || '';
+    document.getElementById('admin-telefono').value = c.telefono || '';
+  };
+  window.clearAdminForm = function(){
+    ['admin-cliente-id','admin-nombre','admin-codigo','admin-sheet-url','admin-sheet-token','admin-logo-url','admin-agente','admin-telefono'].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.value = '';
+    });
+  };
+  window.saveAdminClient = function(){
+    var cliente = {
+      id: val('admin-cliente-id') || undefined,
+      nombre: val('admin-nombre'), codigo: val('admin-codigo'),
+      url: val('admin-sheet-url'), token: val('admin-sheet-token'),
+      logoUrl: val('admin-logo-url'), agente: val('admin-agente'), telefono: val('admin-telefono')
+    };
+    if(!cliente.nombre || !cliente.codigo || !cliente.url || !cliente.token){
+      alert('Rellena al menos nombre, contraseña, URL del Sheet y token del Sheet'); return;
+    }
+    fetch(ADMIN_API_URL, { method: 'POST', body: JSON.stringify({ action: 'adminSave', adminToken: adminToken(), cliente: cliente }) })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){ toast('Cliente guardado'); window.clearAdminForm(); loadAdminClients(); }
+        else { alert('No se pudo guardar el cliente'); }
+      })
+      .catch(function(){ alert('No se pudo conectar con el servidor de administración'); });
+  };
+  window.deleteAdminClient = function(id, nombre){
+    if(!window.confirm('¿Eliminar el acceso de "' + nombre + '"? No podrá volver a iniciar sesión.')) return;
+    fetch(ADMIN_API_URL, { method: 'POST', body: JSON.stringify({ action: 'adminDelete', adminToken: adminToken(), id: id }) })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){ toast('Cliente eliminado'); loadAdminClients(); }
+        else { alert('No se pudo eliminar el cliente'); }
+      })
+      .catch(function(){ alert('No se pudo conectar con el servidor de administración'); });
+  };
+
   // ---- boot ---------------------------------------------------------------
   loadConfig();
   loadVisits();
+  loadBrandFromSheet();
   updateActualizarState();
   renderConversation();
+  checkSession();
   (function setDefaultDate(){
     var el = document.getElementById('v-fecha');
     if(!el.value){ var d = new Date(); d.setDate(d.getDate()+3); el.value = d.toISOString().slice(0,10); }
