@@ -201,6 +201,26 @@
   .modal-row .v a{color:var(--brand-ink);}
   .modal-actions{display:flex; gap:10px; margin-top:4px;}
   .modal-actions button{flex:1;}
+  .modal-card.wide{max-width:880px;}
+  .docx-preview-page{
+    background:#fff; color:#1a1a1a; aspect-ratio:297/210; width:100%;
+    border:1px solid #d5d5d5; box-shadow:0 2px 10px rgba(0,0,0,.12);
+    padding:4% 5%; display:flex; flex-direction:column; gap:3%;
+    font-family:Georgia, 'Times New Roman', serif; overflow:hidden;
+  }
+  .docx-preview-header{display:flex; align-items:center; justify-content:space-between; gap:12px; flex:0 0 auto;}
+  .docx-preview-header img{max-height:60px; max-width:170px; object-fit:contain;}
+  .docx-preview-header .agent{text-align:right; font-size:.8rem; line-height:1.4; color:#333;}
+  .docx-preview-body{display:flex; flex:1; gap:5%; min-height:0;}
+  .docx-preview-text{flex:1 1 50%; font-size:.78rem; line-height:1.5; overflow:hidden; min-width:0;}
+  .docx-preview-text h3{margin:0 0 6px; font-size:1.15rem; font-weight:700;}
+  .docx-preview-text .price{font-weight:700; margin:0 0 4px; font-size:.92rem;}
+  .docx-preview-text .specs{color:#666; margin:0 0 10px; font-size:.76rem;}
+  .docx-preview-text p{margin:0 0 8px;}
+  .docx-preview-image{flex:1 1 50%; display:flex; align-items:center; justify-content:center; min-width:0;}
+  .docx-preview-image img{max-width:100%; max-height:100%; object-fit:contain;}
+  .docx-preview-image .placeholder{color:#999; font-size:.8rem; font-family:inherit;}
+  @media (max-width:600px){ .docx-preview-page{font-size:.85em;} .docx-preview-header img{max-height:40px; max-width:110px;} }
 </style>
 </head>
 <body>
@@ -234,6 +254,20 @@
   <button class="secondary" onclick="saveConfig()">Guardar configuración</button>
 </details>
 
+<details class="config" id="brand-panel">
+  <summary>Datos de la inmobiliaria (para el Word) <span class="badge off" id="brand-badge">sin configurar</span></summary>
+  <p class="hint" style="margin:0 0 12px;">Se usan como encabezado en el documento Word que exportas desde la tarjeta Portal inmobiliario. Se guardan solo en este navegador.</p>
+  <div class="field">
+    <label for="cfg-logo-url">URL del logo de la inmobiliaria (Google Drive)</label>
+    <input id="cfg-logo-url" placeholder="Pega el enlace para compartir de Google Drive">
+  </div>
+  <div class="row2">
+    <div class="field"><label for="cfg-agente">Nombre del agente</label><input id="cfg-agente" placeholder="Introduce el nombre del agente"></div>
+    <div class="field"><label for="cfg-telefono">Teléfono de contacto</label><input id="cfg-telefono" placeholder="600 000 000"></div>
+  </div>
+  <button class="secondary" onclick="saveConfig()">Guardar datos</button>
+</details>
+
 <section class="view active" id="view-ads">
   <div class="grid">
     <form class="panel" id="ad-form" onsubmit="return false;">
@@ -258,7 +292,7 @@
 
       <div class="row2">
         <div class="field"><label for="f-operacion">Operación</label>
-          <select id="f-operacion"><option value="venta" selected>Venta</option><option value="alquiler">Alquiler</option></select>
+          <select id="f-operacion"><option value="venta" selected>Venta</option><option value="compra">Compra</option><option value="alquiler">Alquiler</option></select>
         </div>
         <div class="field"><label for="f-tipo">Tipo</label>
           <select id="f-tipo"><option selected>Piso</option><option>Ático</option><option>Casa</option><option>Chalet</option><option>Local</option><option>Terreno</option></select>
@@ -310,7 +344,7 @@
         </div>
         <div class="copybar" style="gap:8px;">
           <button class="ghost" onclick="copyBlock('portal')">Copiar texto</button>
-          <button class="ghost" onclick="exportPortalWord()">Exportar a Word</button>
+          <button class="ghost" onclick="exportPortalWord()">Vista previa y exportar a Word</button>
         </div>
       </article>
 
@@ -436,6 +470,20 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="word-preview-modal" onclick="if(event.target===this) closeWordPreview();">
+  <div class="modal-card wide" role="dialog" aria-modal="true" aria-labelledby="word-preview-title">
+    <div class="modal-head">
+      <h2 id="word-preview-title">Vista previa del Word (A4 horizontal)</h2>
+      <button class="modal-close" onclick="closeWordPreview()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="docx-preview-page" id="word-preview-page"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeWordPreview()">Seguir editando</button>
+      <button class="primary" style="margin-top:0;" onclick="confirmWordExport()">Descargar Word (.docx)</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.iife.js"></script>
 <script>
 (function(){
@@ -443,7 +491,7 @@
 
   var CONFIG_KEY = 'escaparate_config_v1';
   var VISITS_KEY = 'escaparate_visits_v1';
-  var config = { url: '', token: '' };
+  var config = { url: '', token: '', logoUrl: '', agente: '', telefono: '' };
   var visits = [];
 
   // ---- config -------------------------------------------------------
@@ -454,19 +502,32 @@
     }catch(e){}
     document.getElementById('cfg-url').value = config.url || '';
     document.getElementById('cfg-token').value = config.token || '';
+    document.getElementById('cfg-logo-url').value = config.logoUrl || '';
+    document.getElementById('cfg-agente').value = config.agente || '';
+    document.getElementById('cfg-telefono').value = config.telefono || '';
     updateConfigBadge();
+    updateBrandBadge();
   }
   window.saveConfig = function(){
     config.url = document.getElementById('cfg-url').value.trim();
     config.token = document.getElementById('cfg-token').value.trim();
+    config.logoUrl = document.getElementById('cfg-logo-url').value.trim();
+    config.agente = document.getElementById('cfg-agente').value.trim();
+    config.telefono = document.getElementById('cfg-telefono').value.trim();
     try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
     updateConfigBadge();
-    toast('Configuración guardada');
+    updateBrandBadge();
+    toast('Datos guardados');
     loadVisits();
   };
   function updateConfigBadge(){
     var b = document.getElementById('config-badge');
     if(config.url && config.token){ b.textContent = 'conectado'; b.className = 'badge ok'; }
+    else { b.textContent = 'sin configurar'; b.className = 'badge off'; }
+  }
+  function updateBrandBadge(){
+    var b = document.getElementById('brand-badge');
+    if(config.logoUrl || config.agente || config.telefono){ b.textContent = 'configurado'; b.className = 'badge ok'; }
     else { b.textContent = 'sin configurar'; b.className = 'badge off'; }
   }
   function hasSheet(){ return !!(config.url && config.token); }
@@ -787,6 +848,10 @@
       img.src = url;
     });
   }
+  function fitSize(w, h, maxW, maxH){
+    var ratio = Math.min(maxW / w, maxH / h, 1);
+    return { w: Math.max(1, Math.round(w * ratio)), h: Math.max(1, Math.round(h * ratio)) };
+  }
   window.exportPortalWord = function(){
     if(typeof docx === 'undefined'){ toast('No se pudo cargar la librería de Word (revisa tu conexión a internet)'); return; }
     var portalEl = document.getElementById('out-portal');
@@ -797,18 +862,100 @@
     var specs = Array.prototype.map.call(portalEl.querySelectorAll('.portal-specs span'), function(s){ return s.textContent; }).join(' · ');
     var body = (portalEl.querySelector('.portal-body') || {}).textContent || '';
     var imgUrl = val('portal-img-url');
+    var agente = config.agente || '';
+    var telefono = config.telefono || '';
 
-    toast('Generando documento Word…');
-    var imagePromise = imgUrl ? fetchImageBlob(imgUrl).then(imageInfo) : Promise.resolve(null);
-
-    imagePromise.catch(function(){
-      toast('No se pudo descargar la imagen (comprueba que el enlace de Drive sea público: "Cualquier usuario con el enlace"). Se genera el Word sin foto.');
+    toast('Preparando vista previa…');
+    var imagePromise = imgUrl ? fetchImageBlob(imgUrl).then(imageInfo).catch(function(){
+      toast('No se pudo descargar la foto del inmueble (comprueba que el enlace de Drive sea público). Se genera sin ella.');
       return null;
-    }).then(function(image){
-      buildAndDownloadPortalDocx(titulo, precio, specs, body, image);
+    }) : Promise.resolve(null);
+    var logoPromise = config.logoUrl ? fetchImageBlob(config.logoUrl).then(imageInfo).catch(function(){
+      toast('No se pudo descargar el logo (comprueba que el enlace de Drive sea público). Se genera sin logo.');
+      return null;
+    }) : Promise.resolve(null);
+
+    Promise.all([imagePromise, logoPromise]).then(function(res){
+      pendingWordExport = { titulo: titulo, precio: precio, specs: specs, body: body, image: res[0], logo: res[1], agente: agente, telefono: telefono };
+      showWordPreview(pendingWordExport);
     });
   };
-  function buildAndDownloadPortalDocx(titulo, precio, specs, body, image){
+
+  // ---- vista previa del Word antes de exportar -------------------------
+  var pendingWordExport = null;
+  var wordPreviewObjectUrls = [];
+  function arrayBufferToObjectUrl(buf){
+    var url = URL.createObjectURL(new Blob([buf], { type: 'image/png' }));
+    wordPreviewObjectUrls.push(url);
+    return url;
+  }
+  function revokeWordPreviewUrls(){
+    wordPreviewObjectUrls.forEach(function(u){ URL.revokeObjectURL(u); });
+    wordPreviewObjectUrls = [];
+  }
+  function showWordPreview(data){
+    revokeWordPreviewUrls();
+    var html = '';
+    if(data.logo || data.agente || data.telefono){
+      html += '<div class="docx-preview-header">' +
+        (data.logo ? '<img src="' + arrayBufferToObjectUrl(data.logo.data) + '">' : '<span></span>') +
+        '<div class="agent">' +
+          (data.agente ? '<div><strong>' + escapeHTML(data.agente) + '</strong></div>' : '') +
+          (data.telefono ? '<div>' + escapeHTML(data.telefono) + '</div>' : '') +
+        '</div>' +
+      '</div>';
+    }
+    html += '<div class="docx-preview-body">';
+    html += '<div class="docx-preview-text"><h3>' + escapeHTML(data.titulo) + '</h3>' +
+      (data.precio ? '<p class="price">' + escapeHTML(data.precio) + '</p>' : '') +
+      (data.specs ? '<p class="specs">' + escapeHTML(data.specs) + '</p>' : '') +
+      (data.body || '').split('\n').filter(Boolean).map(function(l){ return '<p>' + escapeHTML(l) + '</p>'; }).join('') +
+    '</div>';
+    html += '<div class="docx-preview-image">' +
+      (data.image ? '<img src="' + arrayBufferToObjectUrl(data.image.data) + '">' : '<span class="placeholder">(sin imagen)</span>') +
+    '</div>';
+    html += '</div>';
+    document.getElementById('word-preview-page').innerHTML = html;
+    document.getElementById('word-preview-modal').classList.add('show');
+  }
+  window.closeWordPreview = function(){
+    document.getElementById('word-preview-modal').classList.remove('show');
+    revokeWordPreviewUrls();
+  };
+  window.confirmWordExport = function(){
+    if(!pendingWordExport){ toast('Genera primero la vista previa'); return; }
+    var d = pendingWordExport;
+    window.closeWordPreview();
+    toast('Generando documento Word…');
+    buildAndDownloadPortalDocx(d.titulo, d.precio, d.specs, d.body, d.image, d.logo, d.agente, d.telefono);
+  };
+  function buildHeaderTable(D, logo, agente, telefono){
+    if(!logo && !agente && !telefono) return null;
+    var leftChildren;
+    if(logo){
+      var lsz = fitSize(logo.w, logo.h, 180, 90);
+      leftChildren = [ new D.Paragraph({ children: [
+        new D.ImageRun({ data: logo.data, transformation: { width: lsz.w, height: lsz.h }, type: 'png' })
+      ] }) ];
+    } else {
+      leftChildren = [ new D.Paragraph({ children: [] }) ];
+    }
+    var rightChildren = [];
+    if(agente) rightChildren.push(new D.Paragraph({ alignment: D.AlignmentType.RIGHT, children: [ new D.TextRun({ text: agente, bold: true }) ] }));
+    if(telefono) rightChildren.push(new D.Paragraph({ alignment: D.AlignmentType.RIGHT, children: [ new D.TextRun({ text: telefono, color: '666666' }) ] }));
+    if(!rightChildren.length) rightChildren = [ new D.Paragraph({ children: [] }) ];
+
+    var noBorder = { style: D.BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+    return new D.Table({
+      width: { size: 100, type: D.WidthType.PERCENTAGE },
+      borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder },
+      rows: [ new D.TableRow({ children: [
+        new D.TableCell({ width: { size: 50, type: D.WidthType.PERCENTAGE }, verticalAlign: D.VerticalAlign.CENTER, children: leftChildren }),
+        new D.TableCell({ width: { size: 50, type: D.WidthType.PERCENTAGE }, verticalAlign: D.VerticalAlign.CENTER, children: rightChildren })
+      ] }) ]
+    });
+  }
+  function buildAndDownloadPortalDocx(titulo, precio, specs, body, image, logo, agente, telefono){
     var D = docx;
     var children = [];
     children.push(new D.Paragraph({ text: titulo, heading: D.HeadingLevel.HEADING_1 }));
@@ -820,11 +967,9 @@
 
     var rightCellChildren;
     if(image){
-      var maxW = 420, maxH = 620;
-      var ratio = Math.min(maxW / image.w, maxH / image.h, 1);
-      var w = Math.max(1, Math.round(image.w * ratio)), h = Math.max(1, Math.round(image.h * ratio));
+      var sz = fitSize(image.w, image.h, 420, 620);
       rightCellChildren = [ new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [
-        new D.ImageRun({ data: image.data, transformation: { width: w, height: h }, type: 'png' })
+        new D.ImageRun({ data: image.data, transformation: { width: sz.w, height: sz.h }, type: 'png' })
       ] }) ];
     } else {
       rightCellChildren = [ new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [
@@ -842,6 +987,11 @@
       ] }) ]
     });
 
+    var headerTable = buildHeaderTable(D, logo, agente, telefono);
+    var docChildren = headerTable
+      ? [ headerTable, new D.Paragraph({ spacing: { after: 240 }, children: [] }), table ]
+      : [ table ];
+
     var doc = new D.Document({
       sections: [{
         properties: {
@@ -850,7 +1000,7 @@
             margin: { top: 720, bottom: 720, left: 720, right: 720 }
           }
         },
-        children: [ table ]
+        children: docChildren
       }]
     });
 
