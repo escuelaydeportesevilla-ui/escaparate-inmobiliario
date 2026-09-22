@@ -374,6 +374,15 @@
     <p class="hint">Añade aquí cada mensaje según lo recibas, para tenerlo a mano sin salir a WhatsApp.</p>
 
     <div class="field">
+      <label for="conv-search">Buscar conversación por cliente (en todos los anuncios)</label>
+      <div class="row2">
+        <input id="conv-search" placeholder="Escribe el nombre o teléfono del cliente…">
+        <button type="button" class="secondary" onclick="searchConversations()" style="margin-top:0;">Buscar</button>
+      </div>
+      <div id="conv-search-results"></div>
+    </div>
+
+    <div class="field">
       <label for="link-ad-search">Vincular con un anuncio (buscar por título interno)</label>
       <div class="row2">
         <input id="link-ad-search" placeholder="Escribe parte del título…">
@@ -1121,6 +1130,42 @@
     renderConversation();
     document.getElementById('conv-cliente').focus();
     toast('Conversación en blanco. Escribe el nombre del cliente.');
+  };
+  var convThreadsCache = [];
+  window.searchConversations = function(){
+    if(!hasSheet()){ toast('Configura la agenda arriba para buscar conversaciones guardadas'); return; }
+    var q = val('conv-search');
+    var resultsEl = document.getElementById('conv-search-results');
+    resultsEl.innerHTML = '<p class="empty-note">Buscando…</p>';
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=conversationThreads&q=' + encodeURIComponent(q))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        convThreadsCache = (data && data.threads) || [];
+        renderConvThreadResults(convThreadsCache);
+      })
+      .catch(function(){
+        resultsEl.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>';
+      });
+  };
+  function renderConvThreadResults(list){
+    var el = document.getElementById('conv-search-results');
+    if(!list.length){ el.innerHTML = '<p class="empty-note">Sin conversaciones guardadas con ese nombre.</p>'; return; }
+    el.innerHTML = list.slice(0, 12).map(function(t, i){
+      return '<div class="ad-result" onclick="selectConvThread(' + i + ')">' +
+        '<div class="who">' + escapeHTML(t.cliente) + '</div>' +
+        '<div class="what">' + escapeHTML(t.titulo || '') + (t.ultimoTexto ? ' · ' + escapeHTML(t.ultimoTexto.slice(0, 60)) : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  window.selectConvThread = function(i){
+    var t = convThreadsCache[i];
+    if(!t) return;
+    linkedAd = { id: t.adId, titulo: t.titulo || '', ubicacion: '' };
+    renderLinkedChip();
+    document.getElementById('conv-search-results').innerHTML = '';
+    document.getElementById('conv-search').value = '';
+    document.getElementById('conv-cliente').value = t.cliente;
+    loadClienteConversation();
   };
   window.loadClienteConversation = function(){
     var cliente = val('conv-cliente');
