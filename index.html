@@ -634,7 +634,8 @@
             ubicacion: p.ubicacion, precio: p.precio, metros: p.metros,
             habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
             caracteristicas: p.caracteristicas, tono: p.tono,
-            portal: parts.PORTAL, instagram: parts.INSTAGRAM, whatsapp: parts.WHATSAPP
+            portal: parts.PORTAL, instagram: parts.INSTAGRAM, whatsapp: parts.WHATSAPP,
+            imagenUrl: val('portal-img-url')
           }
         })
       }).then(function(r){ return r.json(); })
@@ -712,6 +713,7 @@
     );
     document.getElementById('out-instagram').textContent = a.instagram || '';
     document.getElementById('out-whatsapp').textContent = a.whatsapp || '';
+    document.getElementById('portal-img-url').value = a.imagenUrl || '';
 
     document.getElementById('ad-search-results').innerHTML = '';
     document.getElementById('ad-search').value = '';
@@ -736,7 +738,8 @@
           ubicacion: p.ubicacion, precio: p.precio, metros: p.metros,
           habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
           caracteristicas: p.caracteristicas, tono: p.tono,
-          portal: portalBody, instagram: instagram, whatsapp: whatsapp
+          portal: portalBody, instagram: instagram, whatsapp: whatsapp,
+          imagenUrl: val('portal-img-url')
         }
       })
     }).then(function(r){ return r.json(); })
@@ -767,6 +770,7 @@
     document.getElementById('out-instagram').textContent = '';
     document.getElementById('out-whatsapp').textContent = '';
     var pasteEl = document.getElementById('ad-paste'); if(pasteEl) pasteEl.value = '';
+    var imgUrlEl = document.getElementById('portal-img-url'); if(imgUrlEl) imgUrlEl.value = '';
     document.getElementById('ad-search-results').innerHTML = '';
     document.getElementById('ad-search').value = '';
     currentAdId = null;
