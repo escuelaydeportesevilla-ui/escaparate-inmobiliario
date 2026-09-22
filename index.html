@@ -384,6 +384,15 @@
     </div>
 
     <div class="field">
+      <label for="conv-cliente">Cliente (nombre o teléfono)</label>
+      <div class="row2">
+        <input id="conv-cliente" placeholder="Ej. María López · 600111222" onchange="loadClienteConversation()">
+        <button type="button" class="secondary" onclick="newConversation()" style="margin-top:0;">Nueva conversación</button>
+      </div>
+      <p class="hint" style="margin:6px 0 0;">Cambia el nombre para separar conversaciones de distintos clientes sobre el mismo anuncio.</p>
+    </div>
+
+    <div class="field">
       <label>Conversación</label>
       <div id="conversation-thread" class="conversation-thread">
         <p class="empty-note">Todavía no has añadido ningún mensaje.</p>
@@ -1091,33 +1100,50 @@
       document.getElementById('link-ad-search').value = '';
       var vInmueble = document.getElementById('v-inmueble');
       if(vInmueble && !vInmueble.value) vInmueble.value = linkedAd.titulo;
-      toast('Conversación vinculada a: ' + linkedAd.titulo);
-      loadConversationFromSheet(linkedAd.id);
+      toast('Anuncio vinculado. Escribe el nombre del cliente para cargar o empezar su conversación.');
+      // Cambiar de anuncio empieza en blanco: cada hilo es (anuncio + cliente).
+      document.getElementById('conv-cliente').value = '';
+      conversation = [];
+      renderConversation();
     });
   };
   window.clearLinkAd = function(){
     linkedAd = null;
     conversation = [];
+    document.getElementById('conv-cliente').value = '';
     renderConversation();
     renderLinkedChip();
   };
-  function loadConversationFromSheet(adId){
-    if(!hasSheet()) return;
+  window.newConversation = function(){
+    conversation = [];
+    document.getElementById('conv-cliente').value = '';
+    document.getElementById('f-new-msg').value = '';
+    renderConversation();
+    document.getElementById('conv-cliente').focus();
+    toast('Conversación en blanco. Escribe el nombre del cliente.');
+  };
+  window.loadClienteConversation = function(){
+    var cliente = val('conv-cliente');
+    if(!cliente){ conversation = []; renderConversation(); return; }
+    if(!linkedAd){ toast('Vincula primero un anuncio arriba'); return; }
+    if(!hasSheet()){ conversation = []; renderConversation(); return; }
     document.getElementById('conversation-thread').innerHTML = '<p class="empty-note">Cargando conversación…</p>';
-    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=conversation&adId=' + encodeURIComponent(adId))
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) +
+      '&action=conversation&adId=' + encodeURIComponent(linkedAd.id) + '&cliente=' + encodeURIComponent(cliente))
       .then(function(r){ return r.json(); })
       .then(function(data){
         conversation = (data && data.conversation) ? data.conversation.map(function(m){
           return { id: m.id, role: m.role, text: m.texto };
         }) : [];
         renderConversation();
+        toast(conversation.length ? 'Conversación cargada' : 'Cliente nuevo, sin conversación previa');
       })
       .catch(function(){
         conversation = [];
         renderConversation();
         toast('No se pudo cargar la conversación guardada');
       });
-  }
+  };
   function renderLinkedChip(){
     var el = document.getElementById('linked-ad-chip');
     if(!linkedAd){ el.style.display = 'none'; el.innerHTML = ''; return; }
@@ -1185,17 +1211,19 @@
     }
   };
 
-  // Guarda un mensaje en el Sheet, vinculado al anuncio activo. Sin
-  // anuncio vinculado o sin Sheet configurado, el mensaje solo queda en
-  // memoria (se pierde al recargar), como antes.
+  // Guarda un mensaje en el Sheet, vinculado al anuncio + cliente activos.
+  // Sin anuncio, sin nombre de cliente o sin Sheet configurado, el mensaje
+  // solo queda en memoria (se pierde al recargar), como antes.
   function saveMessage(m){
+    var cliente = val('conv-cliente');
     if(!linkedAd){ toast('Añadido (vincula un anuncio arriba para guardarlo)'); return; }
+    if(!cliente){ toast('Añadido (escribe el nombre del cliente arriba para guardarlo)'); return; }
     if(!hasSheet()) return;
     fetch(config.url, {
       method: 'POST',
       body: JSON.stringify({
         action: 'addMessage', token: config.token,
-        message: { adId: linkedAd.id, role: m.role, texto: m.text }
+        message: { adId: linkedAd.id, cliente: cliente, role: m.role, texto: m.text }
       })
     }).then(function(r){ return r.json(); })
       .then(function(data){ if(data && data.ok){ m.id = data.id; } })
