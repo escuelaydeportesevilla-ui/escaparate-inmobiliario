@@ -1117,6 +1117,10 @@
       sections: [{
         properties: {
           page: {
+            // A4 horizontal: docx.js SÍ invierte width/height automáticamente
+            // cuando orientation es LANDSCAPE, así que aquí van los valores tal
+            // cual de un A4 vertical (210x297mm en twips) — no hay que
+            // intercambiarlos a mano.
             size: { orientation: D.PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
             margin: { top: 720, bottom: 720, left: 720, right: 720 }
           }
