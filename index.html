@@ -1117,7 +1117,12 @@
       sections: [{
         properties: {
           page: {
-            size: { orientation: D.PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
+            // A4 horizontal real: con orientation LANDSCAPE, docx.js NO invierte
+            // width/height por ti — hay que pasarlos ya intercambiados (el ancho
+            // del folio apaisado es el lado largo, 297mm; si se dejan como en
+            // vertical, el .docx descargado sale con las proporciones giradas
+            // aunque la vista previa en pantalla parezca correcta).
+            size: { orientation: D.PageOrientation.LANDSCAPE, width: 16838, height: 11906 },
             margin: { top: 720, bottom: 720, left: 720, right: 720 }
           }
         },
