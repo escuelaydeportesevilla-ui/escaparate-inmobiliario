@@ -199,8 +199,8 @@
   .modal-row .k{font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft);}
   .modal-row .v{font-size:.98rem; overflow-wrap:anywhere;}
   .modal-row .v a{color:var(--brand-ink);}
-  .modal-actions{display:flex; gap:10px; margin-top:4px;}
-  .modal-actions button{flex:1;}
+  .modal-actions{display:flex; gap:10px; margin-top:4px; flex-wrap:wrap;}
+  .modal-actions button{flex:1; min-width:120px;}
   .modal-card.wide{max-width:880px;}
   .docx-preview-page{
     background:#fff; color:#1a1a1a; aspect-ratio:297/210; width:100%;
@@ -518,18 +518,21 @@
 <div class="modal-overlay" id="word-preview-modal" onclick="if(event.target===this) closeWordPreview();">
   <div class="modal-card wide" role="dialog" aria-modal="true" aria-labelledby="word-preview-title">
     <div class="modal-head">
-      <h2 id="word-preview-title">Vista previa del Word (A4 horizontal)</h2>
+      <h2 id="word-preview-title">Vista previa (A4 horizontal)</h2>
       <button class="modal-close" onclick="closeWordPreview()" aria-label="Cerrar">✕</button>
     </div>
     <div class="docx-preview-page" id="word-preview-page"></div>
     <div class="modal-actions">
       <button class="secondary" onclick="closeWordPreview()">Seguir editando</button>
+      <button class="secondary" style="margin-top:0;" onclick="confirmPdfExport()">Descargar PDF</button>
       <button class="primary" style="margin-top:0;" onclick="confirmWordExport()">Descargar Word (.docx)</button>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script>
 (function(){
   "use strict";
@@ -1049,6 +1052,33 @@
     window.closeWordPreview();
     toast('Generando documento Word…');
     buildAndDownloadPortalDocx(d.titulo, d.precio, d.specs, d.body, d.image, d.logo, d.agente, d.telefono);
+  };
+  // Genera el PDF fotografiando la propia vista previa en pantalla (el mismo
+  // #word-preview-page que ya ves), así que siempre coincide con lo que
+  // muestra la app, sin depender del generador de Word.
+  window.confirmPdfExport = function(){
+    if(!pendingWordExport){ toast('Genera primero la vista previa'); return; }
+    if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
+      toast('No se pudo cargar la librería de PDF (revisa tu conexión a internet)'); return;
+    }
+    var d = pendingWordExport;
+    var node = document.getElementById('word-preview-page');
+    toast('Generando PDF…');
+    html2canvas(node, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(function(canvas){
+      var imgData = canvas.toDataURL('image/jpeg', 0.95);
+      var pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      var pageW = pdf.internal.pageSize.getWidth();
+      var pageH = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageW, pageH);
+      var fname = (d.titulo || 'anuncio').toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'anuncio';
+      pdf.save(fname + '.pdf');
+      toast('PDF descargado');
+      window.closeWordPreview();
+    }).catch(function(){
+      toast('No se pudo generar el PDF');
+    });
   };
   function buildHeaderTable(D, logo, agente, telefono){
     if(!logo && !agente && !telefono) return null;
