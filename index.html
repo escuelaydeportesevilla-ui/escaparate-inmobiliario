@@ -391,6 +391,28 @@
         <div class="preview-body"><div class="wa-wrap"><div class="wa-bubble" id="out-whatsapp"><span class="placeholder">Aquí aparecerá el mensaje breve para enviar a un cliente.</span></div></div></div>
         <div class="copybar"><button class="ghost" onclick="copyBlock('whatsapp')">Copiar texto</button></div>
       </article>
+
+      <article class="preview-card">
+        <div class="preview-head"><span class="tag">Tour virtual</span></div>
+        <div class="preview-body">
+          <div class="field" style="margin-bottom:14px;">
+            <label for="f-tourfolder">Carpeta de fotos (Google Drive) — opcional, solo como referencia</label>
+            <input id="f-tourfolder" placeholder="Pega el enlace para compartir de la carpeta (opcional)">
+            <p class="hint" style="margin:6px 0 0;">El prompt pide a Claude las fotos directamente en el chat, no lee esta carpeta — es solo para que la tengas anotada.</p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="secondary" style="width:auto; margin-top:0;" onclick="prepareTourPrompt()">Abrir en Claude</button>
+            <button type="button" class="ghost" onclick="copyTourPrompt()">Solo copiar el prompt</button>
+          </div>
+          <p class="hint" style="margin:10px 0 0;">Pégalo en una sesión de Claude con herramientas de archivo/vídeo (la misma que usas para tus Reels) — el chat estándar no genera MP4. Cuando te pida las fotos, pégalas ahí. Descarga el vídeo resultante (~15s), súbelo donde prefieras (Drive, YouTube…) y pega aquí el enlace público:</p>
+          <div class="field" style="margin-top:10px;">
+            <label for="f-toururl">URL del tour virtual (vídeo ya generado)</label>
+            <input id="f-toururl" placeholder="Pega aquí el enlace público del vídeo" onchange="renderTourEmbed()">
+          </div>
+          <div id="tour-embed" style="margin-top:10px;"></div>
+        </div>
+        <div class="copybar"><button class="ghost" onclick="saveTourUrl()">Guardar enlace del tour</button></div>
+      </article>
     </div>
   </div>
 </section>
@@ -734,6 +756,65 @@
     var p = readProperty();
     copyToClipboard(buildAdPrompt(p));
   };
+
+  // ---- tour virtual (prompt para una sesión de Claude con herramientas de
+  // vídeo, no el chat estándar) --------------------------------------------
+  function buildTourPrompt(p, folderUrl){
+    return "Quiero un vídeo de tour virtual profesional de unos 15 segundos para un inmueble en venta.\n\n" +
+      "INMUEBLE: " + (p.titulo || '') + (p.ubicacion ? (' — ' + p.ubicacion) : '') + "\n" +
+      (folderUrl ? ("Carpeta de fotos (Google Drive, como referencia): " + folderUrl + "\n") : '') +
+      "\nPara empezar, pídeme que te pegue las fotos del inmueble aquí mismo en el chat (no intentes " +
+      "acceder tú a la carpeta de Drive). Cuando te las haya pegado:\n\n" +
+      "1. Monta con ellas un vídeo tipo tour inmobiliario de aproximadamente 15 segundos en total " +
+      "(reparte el tiempo entre todas las fotos a partes iguales según cuántas te pase).\n" +
+      "2. Aplica un efecto Ken Burns (paneo + zoom suave) en cada foto.\n" +
+      "3. Usa transiciones en fundido encadenado entre fotos.\n" +
+      "4. Ordénalas de forma lógica: fachada/exterior primero, luego interiores habitación por habitación.\n" +
+      "5. Formato horizontal 1920x1080, sin marcas de agua ni texto superpuesto.\n" +
+      "6. Sin música (la añadiré yo después), salvo que me propongas una pista instrumental libre de derechos.\n\n" +
+      "Al terminar, dame el archivo .mp4 final para descargarlo.";
+  }
+  window.prepareTourPrompt = function(){
+    var p = readProperty();
+    if(!p.titulo){ toast('Introduce al menos el título del inmueble'); return; }
+    openClaude(buildTourPrompt(p, val('f-tourfolder')));
+  };
+  window.copyTourPrompt = function(){
+    var p = readProperty();
+    if(!p.titulo){ toast('Introduce al menos el título del inmueble'); return; }
+    copyToClipboard(buildTourPrompt(p, val('f-tourfolder')));
+  };
+  // Muestra el vídeo embebido cuando se reconoce el servicio (YouTube o
+  // Drive); para cualquier otro enlace, un simple link de "ver tour".
+  function renderTourEmbed(){
+    var url = val('f-toururl');
+    var el = document.getElementById('tour-embed');
+    if(!url){ el.innerHTML = ''; return; }
+    var yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{6,})/);
+    var drive = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]{10,})/);
+    if(yt){
+      el.innerHTML = '<iframe style="width:100%; aspect-ratio:16/9; border:0; border-radius:10px;" src="https://www.youtube.com/embed/' + yt[1] + '" allowfullscreen></iframe>';
+    } else if(drive){
+      el.innerHTML = '<iframe style="width:100%; aspect-ratio:16/9; border:0; border-radius:10px;" src="https://drive.google.com/file/d/' + drive[1] + '/preview" allowfullscreen></iframe>';
+    } else {
+      el.innerHTML = '<a href="' + escapeHTML(url) + '" target="_blank" rel="noopener" class="badge ok" style="text-decoration:none;">▶ Ver tour virtual</a>';
+    }
+  }
+  window.renderTourEmbed = renderTourEmbed;
+  window.saveTourUrl = function(){
+    if(!currentAdId){ toast('Primero busca y carga un anuncio guardado (o repártelo en las tarjetas)'); return; }
+    if(!hasSheet()){ toast('Configura la agenda arriba para guardar en el Sheet'); return; }
+    fetch(config.url, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateAd', token: config.token, ad: buildFullAdPayload() })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){ toast('Enlace del tour guardado en el Sheet'); adsCache = null; }
+        else { toast('No se pudo guardar en el Sheet'); }
+      })
+      .catch(function(){ toast('No se pudo guardar en el Sheet'); });
+  };
+
   window.applyAdPaste = function(){
     var text = document.getElementById('ad-paste').value;
     var parts = splitSections(text, ['PORTAL','INSTAGRAM','WHATSAPP']);
@@ -758,7 +839,8 @@
             habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
             caracteristicas: p.caracteristicas, tono: p.tono,
             portal: parts.PORTAL, instagram: parts.INSTAGRAM, whatsapp: parts.WHATSAPP,
-            imagenUrl: val('portal-img-url')
+            imagenUrl: val('portal-img-url'),
+            tourFolderUrl: val('f-tourfolder'), tourUrl: val('f-toururl')
           }
         })
       }).then(function(r){ return r.json(); })
@@ -837,6 +919,9 @@
     document.getElementById('out-instagram').textContent = a.instagram || '';
     document.getElementById('out-whatsapp').textContent = a.whatsapp || '';
     document.getElementById('portal-img-url').value = a.imagenUrl || '';
+    document.getElementById('f-tourfolder').value = a.tourFolderUrl || '';
+    document.getElementById('f-toururl').value = a.tourUrl || '';
+    renderTourEmbed();
 
     document.getElementById('ad-search-results').innerHTML = '';
     document.getElementById('ad-search').value = '';
@@ -845,26 +930,30 @@
     toast('Anuncio cargado: ' + (a.titulo || ''));
   };
 
-  window.updateCurrentAd = function(){
-    if(!currentAdId){ toast('Primero busca y carga un anuncio guardado'); return; }
-    if(!hasSheet()){ toast('Configura la agenda arriba para guardar en el Sheet'); return; }
+  // updateAd sobrescribe TODOS los campos del anuncio en el Sheet (no hace
+  // fusión parcial), así que cualquier guardado tiene que mandar el objeto
+  // completo — de aquí lo reutilizan updateCurrentAd() y saveTourUrl().
+  function buildFullAdPayload(){
     var p = readProperty();
     var portalBody = (document.querySelector('#out-portal .portal-body') || {}).textContent || '';
     var instagram = document.getElementById('out-instagram').textContent || '';
     var whatsapp = document.getElementById('out-whatsapp').textContent || '';
+    return {
+      id: currentAdId, titulo: p.titulo, operacion: p.operacion, tipo: p.tipo,
+      ubicacion: p.ubicacion, precio: p.precio, metros: p.metros,
+      habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
+      caracteristicas: p.caracteristicas, tono: p.tono,
+      portal: portalBody, instagram: instagram, whatsapp: whatsapp,
+      imagenUrl: val('portal-img-url'),
+      tourFolderUrl: val('f-tourfolder'), tourUrl: val('f-toururl')
+    };
+  }
+  window.updateCurrentAd = function(){
+    if(!currentAdId){ toast('Primero busca y carga un anuncio guardado'); return; }
+    if(!hasSheet()){ toast('Configura la agenda arriba para guardar en el Sheet'); return; }
     fetch(config.url, {
       method: 'POST',
-      body: JSON.stringify({
-        action: 'updateAd', token: config.token,
-        ad: {
-          id: currentAdId, titulo: p.titulo, operacion: p.operacion, tipo: p.tipo,
-          ubicacion: p.ubicacion, precio: p.precio, metros: p.metros,
-          habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
-          caracteristicas: p.caracteristicas, tono: p.tono,
-          portal: portalBody, instagram: instagram, whatsapp: whatsapp,
-          imagenUrl: val('portal-img-url')
-        }
-      })
+      body: JSON.stringify({ action: 'updateAd', token: config.token, ad: buildFullAdPayload() })
     }).then(function(r){ return r.json(); })
       .then(function(data){
         if(data && data.ok){ toast('Anuncio actualizado en el Sheet'); adsCache = null; }
@@ -881,7 +970,7 @@
   };
 
   window.newAd = function(){
-    ['f-titulo','f-ubicacion','f-precio','f-metros','f-planta','f-hab','f-banos','f-caract'].forEach(function(id){
+    ['f-titulo','f-ubicacion','f-precio','f-metros','f-planta','f-hab','f-banos','f-caract','f-tourfolder','f-toururl'].forEach(function(id){
       var el = document.getElementById(id);
       if(el) el.value = '';
     });
@@ -894,6 +983,7 @@
     document.getElementById('out-whatsapp').textContent = '';
     var pasteEl = document.getElementById('ad-paste'); if(pasteEl) pasteEl.value = '';
     var imgUrlEl = document.getElementById('portal-img-url'); if(imgUrlEl) imgUrlEl.value = '';
+    document.getElementById('tour-embed').innerHTML = '';
     document.getElementById('ad-search-results').innerHTML = '';
     document.getElementById('ad-search').value = '';
     currentAdId = null;
