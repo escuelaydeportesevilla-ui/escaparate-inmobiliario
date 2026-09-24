@@ -413,7 +413,7 @@
             <button type="button" class="secondary" style="width:auto; margin-top:0;" onclick="prepareTourPrompt()">Abrir en Claude</button>
             <button type="button" class="ghost" onclick="copyTourPrompt()">Solo copiar el prompt</button>
           </div>
-          <p class="hint" style="margin:10px 0 0;">Pégalo en una sesión de Claude con herramientas de archivo/vídeo (la misma que usas para tus Reels) — el chat estándar no genera MP4. Cuando te pida las fotos, pégalas ahí. Descarga el vídeo resultante (~15s), súbelo donde prefieras (Drive, YouTube…) y pega aquí el enlace público:</p>
+          <p class="hint" style="margin:10px 0 0;">Pégalo en una sesión de Claude con herramientas de archivo/vídeo (la misma que usas para tus Reels) — el chat estándar no genera MP4. Cuando te pida las fotos, pégalas ahí. Descarga el vídeo resultante (~15s) y súbelo a YouTube como "Oculto" (no listado): así la vista previa y el reinicio funcionan siempre, en móvil y escritorio, sin pedir cuenta. Pega aquí el enlace público (también admite Drive u otros, con vista previa más simple):</p>
           <div class="field" style="margin-top:10px;">
             <label for="f-toururl">URL del tour virtual (vídeo ya generado)</label>
             <input id="f-toururl" placeholder="Pega aquí el enlace público del vídeo" onchange="renderTourEmbed(); saveTourUrl(true);">
@@ -835,8 +835,13 @@
         '<div class="tour-thumb-play">▶ Ver a pantalla completa</div>' +
       '</div>';
     } else {
-      // Drive u otro enlace: nada de iframe, solo abrir en pestaña nueva.
-      el.innerHTML = '<a href="' + escapeHTML(url) + '" target="_blank" rel="noopener" class="badge ok" style="text-decoration:none;">▶ Ver tour virtual</a>';
+      // Drive u otro enlace: se mantiene la misma miniatura (misma "vista" de
+      // siempre en escritorio y móvil), pero sin iframe — al tocarla se abre
+      // en pestaña nueva, donde el reproductor nativo de Drive funciona sin
+      // pedir cuenta y permite reiniciar el vídeo con normalidad.
+      el.innerHTML = '<a href="' + escapeHTML(url) + '" target="_blank" rel="noopener" class="tour-thumb" style="display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#1b1f2a,#3a4152); text-decoration:none;">' +
+        '<div class="tour-thumb-play" style="position:static; background:none;">▶ Ver tour virtual</div>' +
+      '</a>';
     }
   }
   window.renderTourEmbed = renderTourEmbed;
