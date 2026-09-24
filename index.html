@@ -809,14 +809,18 @@
     if(!p.titulo){ toast('Introduce al menos el título del inmueble'); return; }
     copyToClipboard(buildTourPrompt(p, val('f-tourfolder')));
   };
-  // Reconoce el servicio (YouTube o Drive) y devuelve la URL de embed, o
-  // null si no se reconoce (en cuyo caso se ofrece solo un enlace directo).
-  function tourEmbedSrc(url){
+  // Reconoce el servicio del enlace. SOLO YouTube se incrusta con <iframe>:
+  // el "preview" de Google Drive dentro de un iframe de terceros puede forzar
+  // un selector de cuenta en móvil incluso con el archivo compartido como
+  // "cualquiera con el enlace" (limitación del propio Drive, no de esta app).
+  // Por eso Drive (y cualquier otro enlace no reconocido) se trata igual:
+  // un botón que abre el vídeo en una pestaña nueva, donde el reproductor
+  // nativo (de Drive o del navegador) funciona sin restricciones y permite
+  // reiniciar el vídeo con normalidad.
+  function tourEmbedInfo(url){
     var yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{6,})/);
-    if(yt) return 'https://www.youtube.com/embed/' + yt[1];
-    var drive = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]{10,})/);
-    if(drive) return 'https://drive.google.com/file/d/' + drive[1] + '/preview';
-    return null;
+    if(yt) return { kind: 'youtube', id: yt[1] };
+    return { kind: 'link' };
   }
   // En el formulario solo se muestra una MINIATURA pequeña (no el vídeo a
   // ancho completo, que en móvil desbordaba la pantalla). Al tocarla se
@@ -825,21 +829,34 @@
     var url = val('f-toururl');
     var el = document.getElementById('tour-embed');
     if(!url){ el.innerHTML = ''; return; }
-    var src = tourEmbedSrc(url);
-    if(src){
-      el.innerHTML = '<div class="tour-thumb" onclick="openTourModal(\'' + encodeURIComponent(src) + '\')">' +
-        '<iframe src="' + src + '" tabindex="-1"></iframe>' +
+    var info = tourEmbedInfo(url);
+    if(info.kind === 'youtube'){
+      el.innerHTML = '<div class="tour-thumb" style="background-image:url(\'https://img.youtube.com/vi/' + info.id + '/hqdefault.jpg\');background-size:cover;background-position:center;" onclick="openTourModal(\'' + info.id + '\')">' +
         '<div class="tour-thumb-play">▶ Ver a pantalla completa</div>' +
       '</div>';
     } else {
+      // Drive u otro enlace: nada de iframe, solo abrir en pestaña nueva.
       el.innerHTML = '<a href="' + escapeHTML(url) + '" target="_blank" rel="noopener" class="badge ok" style="text-decoration:none;">▶ Ver tour virtual</a>';
     }
   }
   window.renderTourEmbed = renderTourEmbed;
-  window.openTourModal = function(encodedSrc){
-    document.getElementById('tour-modal-body').innerHTML =
-      '<iframe src="' + decodeURIComponent(encodedSrc) + '" allowfullscreen style="width:100%; aspect-ratio:16/9; border:0; border-radius:10px;"></iframe>';
+  // Solo se usa para vídeos de YouTube. autoplay=1 lo lanza al abrir el modal;
+  // el botón "Reiniciar" recarga el iframe con un parámetro nuevo para forzar
+  // que vuelva a empezar (evita quedar "bloqueado" al terminar el vídeo).
+  window.openTourModal = function(youtubeId){
+    function frameHtml(){
+      return '<iframe id="tour-modal-frame" src="https://www.youtube.com/embed/' + youtubeId + '?autoplay=1&rel=0&playsinline=1&t=' + Date.now() +
+        '" allow="autoplay; encrypted-media; fullscreen" allowfullscreen style="width:100%; aspect-ratio:16/9; border:0; border-radius:10px; display:block;"></iframe>';
+    }
+    document.getElementById('tour-modal-body').innerHTML = frameHtml() +
+      '<div style="display:flex; justify-content:center; margin-top:12px;">' +
+        '<button type="button" class="ghost" onclick="restartTourVideo(\'' + youtubeId + '\')">↺ Reiniciar vídeo</button>' +
+      '</div>';
     document.getElementById('tour-modal').classList.add('show');
+  };
+  window.restartTourVideo = function(youtubeId){
+    var frame = document.getElementById('tour-modal-frame');
+    if(frame) frame.src = 'https://www.youtube.com/embed/' + youtubeId + '?autoplay=1&rel=0&playsinline=1&t=' + Date.now();
   };
   window.closeTourModal = function(){
     document.getElementById('tour-modal').classList.remove('show');
