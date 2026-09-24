@@ -181,6 +181,10 @@
   .badge.ok{background:rgba(63,125,84,.15); color:var(--good);}
   .badge.off{background:rgba(177,73,60,.15); color:var(--bad);}
 
+  .tour-thumb{width:220px; max-width:100%; aspect-ratio:16/9; border-radius:10px; overflow:hidden; position:relative; cursor:pointer; background:#000; border:1px solid var(--line);}
+  .tour-thumb iframe{width:100%; height:100%; border:0; pointer-events:none;}
+  .tour-thumb-play{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); color:#fff; font-size:.78rem; font-weight:600; text-align:center; padding:8px;}
+
   .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(8px); background:var(--ink); color:var(--paper); padding:9px 16px; border-radius:9px; font-size:.85rem; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:50;}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
@@ -402,7 +406,7 @@
         <div class="preview-body">
           <div class="field" style="margin-bottom:14px;">
             <label for="f-tourfolder">Carpeta de fotos (Google Drive) — opcional, solo como referencia</label>
-            <input id="f-tourfolder" placeholder="Pega el enlace para compartir de la carpeta (opcional)">
+            <input id="f-tourfolder" placeholder="Pega el enlace para compartir de la carpeta (opcional)" onchange="saveTourUrl(true)">
             <p class="hint" style="margin:6px 0 0;">El prompt pide a Claude las fotos directamente en el chat, no lee esta carpeta — es solo para que la tengas anotada.</p>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -412,7 +416,7 @@
           <p class="hint" style="margin:10px 0 0;">Pégalo en una sesión de Claude con herramientas de archivo/vídeo (la misma que usas para tus Reels) — el chat estándar no genera MP4. Cuando te pida las fotos, pégalas ahí. Descarga el vídeo resultante (~15s), súbelo donde prefieras (Drive, YouTube…) y pega aquí el enlace público:</p>
           <div class="field" style="margin-top:10px;">
             <label for="f-toururl">URL del tour virtual (vídeo ya generado)</label>
-            <input id="f-toururl" placeholder="Pega aquí el enlace público del vídeo" onchange="renderTourEmbed()">
+            <input id="f-toururl" placeholder="Pega aquí el enlace público del vídeo" onchange="renderTourEmbed(); saveTourUrl(true);">
           </div>
           <div id="tour-embed" style="margin-top:10px;"></div>
         </div>
@@ -563,6 +567,16 @@
       <button class="secondary" style="margin-top:0;" onclick="confirmPdfExport()">Descargar PDF</button>
       <button class="primary" style="margin-top:0;" onclick="confirmWordExport()">Descargar Word (.docx)</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tour-modal" onclick="if(event.target===this) closeTourModal();">
+  <div class="modal-card wide" role="dialog" aria-modal="true" aria-labelledby="tour-modal-title">
+    <div class="modal-head">
+      <h2 id="tour-modal-title">Tour virtual</h2>
+      <button class="modal-close" onclick="closeTourModal()" aria-label="Cerrar">✕</button>
+    </div>
+    <div id="tour-modal-body"></div>
   </div>
 </div>
 
@@ -795,35 +809,63 @@
     if(!p.titulo){ toast('Introduce al menos el título del inmueble'); return; }
     copyToClipboard(buildTourPrompt(p, val('f-tourfolder')));
   };
-  // Muestra el vídeo embebido cuando se reconoce el servicio (YouTube o
-  // Drive); para cualquier otro enlace, un simple link de "ver tour".
+  // Reconoce el servicio (YouTube o Drive) y devuelve la URL de embed, o
+  // null si no se reconoce (en cuyo caso se ofrece solo un enlace directo).
+  function tourEmbedSrc(url){
+    var yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{6,})/);
+    if(yt) return 'https://www.youtube.com/embed/' + yt[1];
+    var drive = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]{10,})/);
+    if(drive) return 'https://drive.google.com/file/d/' + drive[1] + '/preview';
+    return null;
+  }
+  // En el formulario solo se muestra una MINIATURA pequeña (no el vídeo a
+  // ancho completo, que en móvil desbordaba la pantalla). Al tocarla se
+  // abre en un modal a pantalla completa; el resto de la pestaña no cambia.
   function renderTourEmbed(){
     var url = val('f-toururl');
     var el = document.getElementById('tour-embed');
     if(!url){ el.innerHTML = ''; return; }
-    var yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{6,})/);
-    var drive = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]{10,})/);
-    if(yt){
-      el.innerHTML = '<iframe style="width:100%; aspect-ratio:16/9; border:0; border-radius:10px;" src="https://www.youtube.com/embed/' + yt[1] + '" allowfullscreen></iframe>';
-    } else if(drive){
-      el.innerHTML = '<iframe style="width:100%; aspect-ratio:16/9; border:0; border-radius:10px;" src="https://drive.google.com/file/d/' + drive[1] + '/preview" allowfullscreen></iframe>';
+    var src = tourEmbedSrc(url);
+    if(src){
+      el.innerHTML = '<div class="tour-thumb" onclick="openTourModal(\'' + encodeURIComponent(src) + '\')">' +
+        '<iframe src="' + src + '" tabindex="-1"></iframe>' +
+        '<div class="tour-thumb-play">▶ Ver a pantalla completa</div>' +
+      '</div>';
     } else {
       el.innerHTML = '<a href="' + escapeHTML(url) + '" target="_blank" rel="noopener" class="badge ok" style="text-decoration:none;">▶ Ver tour virtual</a>';
     }
   }
   window.renderTourEmbed = renderTourEmbed;
-  window.saveTourUrl = function(){
-    if(!currentAdId){ toast('Primero busca y carga un anuncio guardado (o repártelo en las tarjetas)'); return; }
-    if(!hasSheet()){ toast('Configura la agenda arriba para guardar en el Sheet'); return; }
+  window.openTourModal = function(encodedSrc){
+    document.getElementById('tour-modal-body').innerHTML =
+      '<iframe src="' + decodeURIComponent(encodedSrc) + '" allowfullscreen style="width:100%; aspect-ratio:16/9; border:0; border-radius:10px;"></iframe>';
+    document.getElementById('tour-modal').classList.add('show');
+  };
+  window.closeTourModal = function(){
+    document.getElementById('tour-modal').classList.remove('show');
+    document.getElementById('tour-modal-body').innerHTML = '';
+  };
+  // auto=true: se llama solo al escribir en los campos del tour (sin pedirlo
+  // el usuario) — no muestra error si aún no hay anuncio guardado, para no
+  // interrumpir mientras rellena el formulario de un anuncio nuevo.
+  window.saveTourUrl = function(auto){
+    if(!currentAdId){
+      if(!auto) toast('Primero busca y carga un anuncio guardado (o repártelo en las tarjetas)');
+      return;
+    }
+    if(!hasSheet()){
+      if(!auto) toast('Configura la agenda arriba para guardar en el Sheet');
+      return;
+    }
     fetch(config.url, {
       method: 'POST',
       body: JSON.stringify({ action: 'updateAd', token: config.token, ad: buildFullAdPayload() })
     }).then(function(r){ return r.json(); })
       .then(function(data){
         if(data && data.ok){ toast('Enlace del tour guardado en el Sheet'); adsCache = null; }
-        else { toast('No se pudo guardar en el Sheet'); }
+        else { toast('No se pudo guardar el tour en el Sheet'); }
       })
-      .catch(function(){ toast('No se pudo guardar en el Sheet'); });
+      .catch(function(){ toast('No se pudo guardar el tour en el Sheet'); });
   };
 
   window.applyAdPaste = function(){
