@@ -596,19 +596,15 @@
         <button class="ghost" onclick="newAnalisis()">Nuevo análisis</button>
         <button class="primary" style="margin-top:0;" onclick="saveAnalisis()">Guardar análisis</button>
       </div>
-
-      <h2 style="margin-top:22px; font-size:1rem;">Buscar análisis guardados (por cliente)</h2>
-      <div class="row2">
-        <input id="an-search-cliente" placeholder="Nombre del cliente…">
-        <button type="button" class="secondary" onclick="searchAnalisisThreads()" style="margin-top:0;">Buscar</button>
-      </div>
-      <div id="an-search-results" style="margin-top:8px;"></div>
     </div>
 
     <div class="panel">
       <h2>Repositorio de análisis</h2>
       <p class="hint">Todos los informes guardados, más recientes primero. Toca uno para volver a verlo, editarlo o descargarlo.</p>
-      <button type="button" class="ghost" onclick="loadAnalisisRepo()" style="width:auto;">Actualizar lista</button>
+      <div class="row2">
+        <input id="an-repo-filter" placeholder="Filtrar por cliente…" oninput="filterAnalisisRepo()">
+        <button type="button" class="ghost" onclick="loadAnalisisRepo()" style="margin-top:0;">Actualizar lista</button>
+      </div>
       <div id="an-repo-list" style="margin-top:12px;"></div>
     </div>
   </div>
@@ -1203,35 +1199,9 @@
       .catch(function(){ toast('No se pudo guardar el análisis'); });
   };
 
-  var analisisThreadsCache = [];
-  window.searchAnalisisThreads = function(){
-    if(!hasSheet()){ toast('Configura la agenda arriba para buscar análisis guardados'); return; }
-    var q = val('an-search-cliente');
-    var resultsEl = document.getElementById('an-search-results');
-    resultsEl.innerHTML = '<p class="empty-note">Buscando…</p>';
-    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=analisisThreads&q=' + encodeURIComponent(q))
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        analisisThreadsCache = (data && data.analisis) || [];
-        renderAnalisisThreadResults(analisisThreadsCache);
-      })
-      .catch(function(){
-        resultsEl.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>';
-      });
-  };
-  function renderAnalisisThreadResults(list){
-    var el = document.getElementById('an-search-results');
-    if(!list.length){ el.innerHTML = '<p class="empty-note">Sin análisis guardados con ese nombre.</p>'; return; }
-    el.innerHTML = list.slice(0, 12).map(function(a, i){
-      return '<div class="ad-result" onclick="selectAnalisisThread(' + i + ')">' +
-        '<div class="who">' + escapeHTML(a.cliente || '') + ' · ' + escapeHTML(a.operacion || '') + '</div>' +
-        '<div class="what">' + escapeHTML(a.adTitulo || '') + (a.fecha ? ' · ' + escapeHTML(a.fecha) : '') + '</div>' +
-      '</div>';
-    }).join('');
-  }
-  // Carga común de un registro de análisis (venga de la búsqueda por
-  // cliente, del histórico del inmueble o del repositorio general) en el
-  // formulario, para editarlo, re-exportarlo o simplemente volver a verlo.
+  // Carga común de un registro de análisis (venga del histórico del
+  // inmueble o del repositorio general) en el formulario, para editarlo,
+  // re-exportarlo o simplemente volver a verlo.
   function loadAnalisisRecord(a){
     if(!a) return;
     fetchAds().then(function(ads){
@@ -1249,17 +1219,15 @@
       document.getElementById('an-notas').value = a.notas || '';
       document.getElementById('an-informe-cliente').value = a.informeCliente || '';
       document.getElementById('an-informe-interno').value = a.informeInterno || '';
-      document.getElementById('an-search-results').innerHTML = '';
-      document.getElementById('an-search-cliente').value = '';
       window.scrollTo({ top: 0, behavior: 'smooth' });
       toast('Análisis cargado: ' + (a.cliente || ''));
       loadAnalisisHistoryForAd(analisisAd.id);
     });
   }
-  window.selectAnalisisThread = function(i){ loadAnalisisRecord(analisisThreadsCache[i]); };
 
   // ---- repositorio: todos los análisis guardados, visibles siempre en la
-  // columna ancha de la derecha (sin tener que buscar nada) -----------------
+  // columna ancha de la derecha, con un filtro por cliente en vivo (sin
+  // duplicar un segundo buscador con su propia lista de resultados) --------
   var analisisRepoCache = [];
   window.loadAnalisisRepo = function(){
     var el = document.getElementById('an-repo-list');
@@ -1269,14 +1237,24 @@
       .then(function(r){ return r.json(); })
       .then(function(data){
         analisisRepoCache = (data && data.analisis) || [];
+        document.getElementById('an-repo-filter').value = '';
         renderAnalisisRepo(analisisRepoCache);
       })
       .catch(function(){ el.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>'; });
   };
-  function renderAnalisisRepo(list){
+  window.filterAnalisisRepo = function(){
+    var q = val('an-repo-filter').toLowerCase();
+    var list = q ? analisisRepoCache.filter(function(a){ return (a.cliente || '').toLowerCase().indexOf(q) !== -1; }) : analisisRepoCache;
+    renderAnalisisRepo(list, !!q);
+  };
+  function renderAnalisisRepo(list, isFiltered){
     var el = document.getElementById('an-repo-list');
-    if(!list.length){ el.innerHTML = '<p class="empty-note">Todavía no hay ningún análisis guardado.</p>'; return; }
-    el.innerHTML = list.map(function(a, i){
+    if(!list.length){
+      el.innerHTML = '<p class="empty-note">' + (isFiltered ? 'Ningún análisis de ese cliente.' : 'Todavía no hay ningún análisis guardado.') + '</p>';
+      return;
+    }
+    el.innerHTML = list.map(function(a){
+      var i = analisisRepoCache.indexOf(a);
       return '<div class="ad-result" onclick="selectRepoAnalisis(' + i + ')">' +
         '<div class="who">' + escapeHTML(a.cliente || '(sin cliente)') + ' · ' + escapeHTML(a.operacion || '') +
           (a.precioPropuesto ? ' · ' + escapeHTML(String(a.precioPropuesto)) + ' €' : '') + '</div>' +
