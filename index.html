@@ -269,6 +269,7 @@
     <button role="tab" id="tab-ads" aria-selected="true" onclick="switchView('ads')">Anuncios</button>
     <button role="tab" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas</button>
     <button role="tab" id="tab-visits" aria-selected="false" onclick="switchView('visits')">Visitas</button>
+    <button role="tab" id="tab-analisis" aria-selected="false" onclick="switchView('analisis')">Análisis</button>
   </nav>
   <div style="display:flex; gap:8px;">
     <button class="ghost" onclick="refreshAll()" title="Recargar anuncios, visitas y conversaciones desde el Sheet">Refrescar</button>
@@ -528,6 +529,84 @@
   </div>
 </section>
 
+<section class="view" id="view-analisis">
+  <div class="grid">
+    <div class="panel">
+      <h2>Análisis de propuestas</h2>
+      <p class="hint">Estudia una oferta de compra o de venta sobre un inmueble: la IA compara precios de mercado y redacta dos informes (uno para el cliente, otro de uso interno).</p>
+
+      <div class="field">
+        <label for="an-ad-search">Buscar inmueble</label>
+        <div class="row2">
+          <input id="an-ad-search" placeholder="Escribe parte del título…">
+          <button type="button" class="secondary" onclick="searchAnalisisAd()" style="margin-top:0;">Buscar</button>
+        </div>
+        <div id="an-ad-results"></div>
+        <div id="an-ad-chip" style="display:none; margin-top:8px;"></div>
+      </div>
+
+      <div id="an-ad-history" style="margin-top:4px;"></div>
+
+      <div class="row2" style="margin-top:14px;">
+        <div class="field"><label for="an-cliente">Cliente</label><input id="an-cliente" placeholder="Nombre y apellidos"></div>
+        <div class="field"><label for="an-telefono">Teléfono</label><input id="an-telefono" placeholder="600 000 000 (opcional)"></div>
+      </div>
+      <div id="an-ad-clients" style="margin-top:4px;"></div>
+
+      <div class="row2" style="margin-top:10px;">
+        <div class="field">
+          <label for="an-operacion">Tipo de propuesta</label>
+          <select id="an-operacion">
+            <option value="Compra">Compra (el cliente quiere comprar este inmueble)</option>
+            <option value="Venta">Venta (el cliente quiere vender por este precio)</option>
+          </select>
+        </div>
+        <div class="field"><label for="an-precio">Precio propuesto (€)</label><input id="an-precio" type="number" placeholder="Ej. 185000"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="an-fecha">Fecha del informe</label><input id="an-fecha" type="date"></div>
+        <div class="field"><label for="an-notas">Notas adicionales (opcional)</label><input id="an-notas" placeholder="Condiciones, plazos, financiación previa…"></div>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+        <button type="button" class="secondary" style="width:auto; margin-top:0;" onclick="prepareAnalisisPrompt()">Abrir en Claude</button>
+        <button type="button" class="ghost" onclick="copyAnalisisPrompt()">Solo copiar el prompt</button>
+      </div>
+      <p class="hint" style="margin:10px 0 0;">Pégalo en una sesión de Claude con acceso a internet (puede necesitar buscar inmuebles comparables y entidades financieras). Cuando termine, te devolverá los dos informes claramente separados: pega cada uno en su caja correspondiente aquí abajo.</p>
+
+      <div class="field" style="margin-top:14px;">
+        <label for="an-informe-cliente">Informe para el cliente (lenguaje sencillo)</label>
+        <textarea id="an-informe-cliente" rows="8" placeholder="Pega aquí el informe para el cliente…"></textarea>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="ghost" onclick="downloadInforme('cliente','word')">Descargar Word</button>
+        <button type="button" class="ghost" onclick="downloadInforme('cliente','pdf')">Descargar PDF</button>
+      </div>
+
+      <div class="field" style="margin-top:14px;">
+        <label for="an-informe-interno">Informe interno (uso profesional)</label>
+        <textarea id="an-informe-interno" rows="10" placeholder="Pega aquí el informe interno…"></textarea>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="ghost" onclick="downloadInforme('interno','word')">Descargar Word</button>
+        <button type="button" class="ghost" onclick="downloadInforme('interno','pdf')">Descargar PDF</button>
+      </div>
+
+      <div class="copybar" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="ghost" onclick="newAnalisis()">Nuevo análisis</button>
+        <button class="primary" style="margin-top:0;" onclick="saveAnalisis()">Guardar análisis</button>
+      </div>
+
+      <h2 style="margin-top:22px; font-size:1rem;">Buscar análisis guardados (por cliente)</h2>
+      <div class="row2">
+        <input id="an-search-cliente" placeholder="Nombre del cliente…">
+        <button type="button" class="secondary" onclick="searchAnalisisThreads()" style="margin-top:0;">Buscar</button>
+      </div>
+      <div id="an-search-results" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</section>
+
 <div class="toast" id="toast"></div>
 
 <div id="zoom-widget" style="position:fixed; right:14px; bottom:14px; z-index:40; display:flex; align-items:center; gap:2px; background:var(--surface); border:1px solid var(--line); border-radius:999px; box-shadow:var(--shadow); padding:4px;">
@@ -715,9 +794,11 @@
     document.getElementById('view-ads').classList.toggle('active', name==='ads');
     document.getElementById('view-leads').classList.toggle('active', name==='leads');
     document.getElementById('view-visits').classList.toggle('active', name==='visits');
+    document.getElementById('view-analisis').classList.toggle('active', name==='analisis');
     document.getElementById('tab-ads').setAttribute('aria-selected', name==='ads');
     document.getElementById('tab-leads').setAttribute('aria-selected', name==='leads');
     document.getElementById('tab-visits').setAttribute('aria-selected', name==='visits');
+    document.getElementById('tab-analisis').setAttribute('aria-selected', name==='analisis');
   };
 
   function val(id){ return document.getElementById(id).value.trim(); }
@@ -889,6 +970,395 @@
       })
       .catch(function(){ toast('No se pudo guardar el tour en el Sheet'); });
   };
+
+  // ---- análisis de propuestas (informe de IA compra/venta) ---------------
+  var analisisAd = null;      // {id, titulo, ...} inmueble seleccionado
+  var currentAnalisisId = null; // id del análisis cargado, si se está editando uno existente
+
+  window.searchAnalisisAd = function(){
+    if(!hasSheet()){ toast('Configura la agenda arriba para buscar anuncios guardados'); return; }
+    var q = val('an-ad-search').toLowerCase();
+    var resultsEl = document.getElementById('an-ad-results');
+    resultsEl.innerHTML = '<p class="empty-note">Buscando…</p>';
+    fetchAds().then(function(ads){
+      var matches = q ? ads.filter(function(a){ return (a.titulo||'').toLowerCase().indexOf(q) !== -1; }) : ads;
+      renderAnalisisAdResults(matches);
+    }).catch(function(){
+      resultsEl.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>';
+    });
+  };
+  function renderAnalisisAdResults(list){
+    var el = document.getElementById('an-ad-results');
+    if(!list.length){ el.innerHTML = '<p class="empty-note">Sin resultados.</p>'; return; }
+    el.innerHTML = list.slice(0, 8).map(function(a){
+      return '<div class="ad-result" onclick="selectAnalisisAd(\'' + a.id + '\')">' +
+        '<div class="who">' + escapeHTML(a.titulo || '(sin título)') + '</div>' +
+        '<div class="what">' + escapeHTML(a.ubicacion || '') + (a.precio ? ' · ' + escapeHTML(a.precio) : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  window.selectAnalisisAd = function(id){
+    fetchAds().then(function(ads){
+      var a = ads.filter(function(x){ return x.id === id; })[0];
+      if(!a) return;
+      analisisAd = a;
+      document.getElementById('an-ad-results').innerHTML = '';
+      document.getElementById('an-ad-search').value = '';
+      document.getElementById('an-ad-chip').style.display = 'block';
+      document.getElementById('an-ad-chip').innerHTML = '<span class="badge ok">Inmueble: ' + escapeHTML(a.titulo || '') +
+        '</span> <button type="button" class="ghost" style="padding:2px 8px;" onclick="clearAnalisisAd()">Quitar</button>';
+      toast('Inmueble seleccionado: ' + (a.titulo || ''));
+      loadClientsForAnalisisAd(a.id);
+      loadAnalisisHistoryForAd(a.id);
+    });
+  };
+  window.clearAnalisisAd = function(){
+    analisisAd = null;
+    document.getElementById('an-ad-chip').style.display = 'none';
+    document.getElementById('an-ad-chip').innerHTML = '';
+    document.getElementById('an-ad-clients').innerHTML = '';
+    document.getElementById('an-ad-history').innerHTML = '';
+  };
+  function loadClientsForAnalisisAd(adId){
+    if(!hasSheet()) return;
+    var el = document.getElementById('an-ad-clients');
+    el.innerHTML = '<p class="empty-note">Buscando clientes de este anuncio…</p>';
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=clientsForAd&adId=' + encodeURIComponent(adId))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var clientes = (data && data.clientes) || [];
+        if(!clientes.length){ el.innerHTML = ''; return; }
+        el.innerHTML = '<p class="hint" style="margin:0 0 6px;">Clientes que ya han preguntado por este inmueble:</p>' +
+          clientes.map(function(c, i){
+            return '<button type="button" class="ghost" style="margin:0 6px 6px 0;" onclick="pickAnalisisClient(' + i + ')">' +
+              escapeHTML(c.cliente) + '</button>';
+          }).join('');
+        el._clientes = clientes;
+      })
+      .catch(function(){ el.innerHTML = ''; });
+  }
+  window.pickAnalisisClient = function(i){
+    var clientes = document.getElementById('an-ad-clients')._clientes || [];
+    var c = clientes[i];
+    if(!c) return;
+    document.getElementById('an-cliente').value = c.cliente;
+    toast('Cliente seleccionado: ' + c.cliente);
+  };
+  var analisisHistoryCache = [];
+  function loadAnalisisHistoryForAd(adId){
+    if(!hasSheet()) return;
+    var el = document.getElementById('an-ad-history');
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=analisisForAd&adId=' + encodeURIComponent(adId))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        analisisHistoryCache = (data && data.analisis) || [];
+        if(!analisisHistoryCache.length){ el.innerHTML = ''; return; }
+        el.innerHTML = '<p class="hint" style="margin:6px 0;">Propuestas anteriores sobre este inmueble:</p>' +
+          analisisHistoryCache.map(function(a, i){
+            return '<div class="ad-result" onclick="loadAnalisis(' + i + ')">' +
+              '<div class="who">' + escapeHTML(a.cliente || '(sin cliente)') + ' · ' + escapeHTML(a.operacion || '') + '</div>' +
+              '<div class="what">' + escapeHTML(a.fecha || '') + (a.precioPropuesto ? ' · ' + escapeHTML(String(a.precioPropuesto)) + ' €' : '') + '</div>' +
+            '</div>';
+          }).join('');
+      })
+      .catch(function(){ el.innerHTML = ''; });
+  }
+  window.loadAnalisis = function(i){
+    var a = analisisHistoryCache[i];
+    if(!a) return;
+    currentAnalisisId = a.id;
+    document.getElementById('an-cliente').value = a.cliente || '';
+    document.getElementById('an-telefono').value = a.telefono || '';
+    document.getElementById('an-operacion').value = a.operacion || 'Compra';
+    document.getElementById('an-precio').value = a.precioPropuesto || '';
+    document.getElementById('an-fecha').value = a.fecha || '';
+    document.getElementById('an-notas').value = a.notas || '';
+    document.getElementById('an-informe-cliente').value = a.informeCliente || '';
+    document.getElementById('an-informe-interno').value = a.informeInterno || '';
+    toast('Análisis cargado: ' + (a.cliente || ''));
+  };
+  window.newAnalisis = function(){
+    currentAnalisisId = null;
+    ['an-cliente','an-telefono','an-precio','an-notas','an-informe-cliente','an-informe-interno'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('an-operacion').value = 'Compra';
+    document.getElementById('an-fecha').valueAsDate = new Date();
+    toast('Formulario de análisis en blanco');
+  };
+  (function initAnalisisDate(){
+    var f = document.getElementById('an-fecha');
+    if(f && !f.value) f.valueAsDate = new Date();
+  })();
+
+  // Construye el prompt: pide a Claude comparar precios de mercado y
+  // redactar DOS informes (cliente e interno) con marcadores claros para
+  // poder copiar cada uno por separado.
+  function buildAnalisisPrompt(){
+    var a = analisisAd || {};
+    var cliente = val('an-cliente') || '(cliente sin especificar)';
+    var operacion = document.getElementById('an-operacion').value;
+    var precio = val('an-precio');
+    var fecha = val('an-fecha') || new Date().toISOString().slice(0, 10);
+    var notas = val('an-notas');
+
+    var rolCliente = operacion === 'Compra'
+      ? 'el cliente quiere COMPRAR este inmueble y ha propuesto ese precio al vendedor'
+      : 'el cliente es el propietario y quiere VENDER el inmueble; ha recibido o plantea ese precio';
+
+    return "Actúa como un analista inmobiliario y financiero profesional. Necesito un ANÁLISIS DE PROPUESTA " +
+      "de " + operacion.toLowerCase() + " sobre un inmueble, muy riguroso pero práctico.\n\n" +
+      "FECHA DEL INFORME: " + fecha + "\n\n" +
+      "INMUEBLE:\n" +
+      "- Título/referencia: " + (a.titulo || '(sin especificar)') + "\n" +
+      "- Tipo: " + (a.tipo || '-') + "\n" +
+      "- Ubicación: " + (a.ubicacion || '-') + "\n" +
+      "- Precio de anuncio actual: " + (a.precio || '-') + "\n" +
+      "- Metros: " + (a.metros || '-') + " m² · Habitaciones: " + (a.habitaciones || '-') + " · Baños: " + (a.banos || '-') + "\n" +
+      "- Estado: " + (a.estado || '-') + "\n" +
+      "- Características: " + (a.caracteristicas || '-') + "\n\n" +
+      "PROPUESTA A ANALIZAR:\n" +
+      "- Cliente: " + cliente + "\n" +
+      "- Tipo de propuesta: " + operacion + " (" + rolCliente + ")\n" +
+      "- Precio propuesto: " + (precio || '(no especificado)') + " €\n" +
+      (notas ? ("- Notas adicionales: " + notas + "\n") : '') +
+      "\nTRABAJO A REALIZAR (usa tu acceso a internet):\n" +
+      "1. Busca de 3 a 6 inmuebles comparables REALES actualmente en el mercado (misma zona/ciudad, " +
+      "tipo similar, metros y estado parecidos, en el mismo proceso — a la venta si es un caso de venta, " +
+      "o en venta también si es una compra) y anota sus precios y precio/m² para construir una horquilla " +
+      "de valor de mercado.\n" +
+      "2. A partir de esa comparativa, determina un rango de valor de mercado razonable para el inmueble " +
+      "analizado y sitúa el precio propuesto dentro (o fuera) de ese rango.\n" +
+      "3. Evalúa si la oferta de " + operacion.toLowerCase() + " es razonable, favorable o desfavorable " +
+      "para nuestro cliente, con una recomendación clara (aceptar, negociar al alza/baja, o rechazar) y " +
+      "por qué.\n" +
+      "4. Investiga qué entidades financieras o bancos ofrecen actualmente (a fecha de " + fecha + ") " +
+      "condiciones de financiación hipotecaria relevantes para esta operación (tipo de interés orientativo, " +
+      "fijo/variable/mixto, % de financiación habitual), citando 3-4 entidades como referencia orientativa " +
+      "(deja claro que son condiciones de mercado generales, sujetas a estudio bancario individual).\n\n" +
+      "ENTREGA EXACTAMENTE DOS DOCUMENTOS, delimitados así (respeta los marcadores tal cual, sin nada más " +
+      "antes o después de cada uno):\n\n" +
+      "===INFORME CLIENTE===\n" +
+      "(Máximo una carilla. Lenguaje claro, sencillo y cercano, sin tecnicismos financieros ni jerga. " +
+      "Explica la conclusión principal, el porqué en 2-3 ideas, y una recomendación práctica. Este " +
+      "documento se lo entregamos directamente al cliente.)\n" +
+      "===FIN INFORME CLIENTE===\n\n" +
+      "===INFORME INTERNO===\n" +
+      "(Documento profesional y técnico, de uso interno de la agencia. Debe incluir: la fecha del informe " +
+      "(" + fecha + "); la tabla/listado de comparables usados con sus datos y fuente; la metodología y los " +
+      "criterios profesionales empleados para valorar la oferta; el análisis detallado de viabilidad de la " +
+      "propuesta; y el apartado de entidades financieras investigado en el punto 4, con la fecha de esa " +
+      "consulta.)\n" +
+      "===FIN INFORME INTERNO===";
+  }
+  window.prepareAnalisisPrompt = function(){
+    if(!analisisAd){ toast('Busca y selecciona primero un inmueble'); return; }
+    openClaude(buildAnalisisPrompt());
+  };
+  window.copyAnalisisPrompt = function(){
+    if(!analisisAd){ toast('Busca y selecciona primero un inmueble'); return; }
+    copyToClipboard(buildAnalisisPrompt());
+  };
+
+  window.saveAnalisis = function(){
+    if(!analisisAd){ toast('Busca y selecciona primero un inmueble'); return; }
+    if(!hasSheet()){ toast('Configura la agenda arriba para guardar el análisis'); return; }
+    var payload = {
+      id: currentAnalisisId, adId: analisisAd.id, adTitulo: analisisAd.titulo || '',
+      operacion: document.getElementById('an-operacion').value, precioPropuesto: val('an-precio'),
+      cliente: val('an-cliente'), telefono: val('an-telefono'), notas: val('an-notas'),
+      fecha: val('an-fecha'),
+      informeCliente: document.getElementById('an-informe-cliente').value,
+      informeInterno: document.getElementById('an-informe-interno').value
+    };
+    if(!payload.cliente){ toast('Indica el nombre del cliente'); return; }
+    var isUpdate = !!currentAnalisisId;
+    fetch(config.url, {
+      method: 'POST',
+      body: JSON.stringify({ action: isUpdate ? 'updateAnalisis' : 'addAnalisis', token: config.token, analisis: payload })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){
+          if(!isUpdate && data.id) currentAnalisisId = data.id;
+          toast('Análisis guardado en el Sheet');
+          loadAnalisisHistoryForAd(analisisAd.id);
+        } else {
+          toast('No se pudo guardar el análisis');
+        }
+      })
+      .catch(function(){ toast('No se pudo guardar el análisis'); });
+  };
+
+  var analisisThreadsCache = [];
+  window.searchAnalisisThreads = function(){
+    if(!hasSheet()){ toast('Configura la agenda arriba para buscar análisis guardados'); return; }
+    var q = val('an-search-cliente');
+    var resultsEl = document.getElementById('an-search-results');
+    resultsEl.innerHTML = '<p class="empty-note">Buscando…</p>';
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=analisisThreads&q=' + encodeURIComponent(q))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        analisisThreadsCache = (data && data.analisis) || [];
+        renderAnalisisThreadResults(analisisThreadsCache);
+      })
+      .catch(function(){
+        resultsEl.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>';
+      });
+  };
+  function renderAnalisisThreadResults(list){
+    var el = document.getElementById('an-search-results');
+    if(!list.length){ el.innerHTML = '<p class="empty-note">Sin análisis guardados con ese nombre.</p>'; return; }
+    el.innerHTML = list.slice(0, 12).map(function(a, i){
+      return '<div class="ad-result" onclick="selectAnalisisThread(' + i + ')">' +
+        '<div class="who">' + escapeHTML(a.cliente || '') + ' · ' + escapeHTML(a.operacion || '') + '</div>' +
+        '<div class="what">' + escapeHTML(a.adTitulo || '') + (a.fecha ? ' · ' + escapeHTML(a.fecha) : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  window.selectAnalisisThread = function(i){
+    var a = analisisThreadsCache[i];
+    if(!a) return;
+    fetchAds().then(function(ads){
+      var ad = ads.filter(function(x){ return x.id === a.adId; })[0];
+      analisisAd = ad || { id: a.adId, titulo: a.adTitulo || '' };
+      document.getElementById('an-ad-chip').style.display = 'block';
+      document.getElementById('an-ad-chip').innerHTML = '<span class="badge ok">Inmueble: ' + escapeHTML(analisisAd.titulo || '') +
+        '</span> <button type="button" class="ghost" style="padding:2px 8px;" onclick="clearAnalisisAd()">Quitar</button>';
+      currentAnalisisId = a.id;
+      document.getElementById('an-cliente').value = a.cliente || '';
+      document.getElementById('an-telefono').value = a.telefono || '';
+      document.getElementById('an-operacion').value = a.operacion || 'Compra';
+      document.getElementById('an-precio').value = a.precioPropuesto || '';
+      document.getElementById('an-fecha').value = a.fecha || '';
+      document.getElementById('an-notas').value = a.notas || '';
+      document.getElementById('an-informe-cliente').value = a.informeCliente || '';
+      document.getElementById('an-informe-interno').value = a.informeInterno || '';
+      document.getElementById('an-search-results').innerHTML = '';
+      document.getElementById('an-search-cliente').value = '';
+      toast('Análisis cargado: ' + (a.cliente || ''));
+      loadAnalisisHistoryForAd(analisisAd.id);
+    });
+  };
+
+  // ---- exportar los informes (Word / PDF) — documento sencillo A4 vertical
+  // con títulos y párrafos, distinto del maquetado a doble columna del
+  // anuncio (ese es horizontal, pensado para incluir foto).
+  function parseInformeLines_(text){
+    return String(text || '').split('\n').map(function(line){
+      var t = line.trim();
+      if(/^##\s+/.test(t)) return { type: 'h2', text: t.replace(/^##\s+/, '') };
+      if(/^#\s+/.test(t)) return { type: 'h1', text: t.replace(/^#\s+/, '') };
+      if(/^[-•]\s+/.test(t)) return { type: 'bullet', text: t.replace(/^[-•]\s+/, '') };
+      if(!t) return { type: 'blank', text: '' };
+      return { type: 'p', text: t };
+    });
+  }
+  function informeFilename_(kind, titulo){
+    var slug = (titulo || 'informe').toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'informe';
+    return 'informe-' + kind + '-' + slug;
+  }
+  window.downloadInforme = function(kind, format){
+    var bodyText = document.getElementById(kind === 'cliente' ? 'an-informe-cliente' : 'an-informe-interno').value;
+    if(!bodyText.trim()){ toast('Todavía no has pegado el informe ' + kind); return; }
+    var titulo = (analisisAd && analisisAd.titulo) || 'Inmueble';
+    var subtitulo = 'Informe ' + (kind === 'cliente' ? 'para el cliente' : 'interno') +
+      ' — ' + (document.getElementById('an-operacion').value || '') +
+      (val('an-cliente') ? (' · ' + val('an-cliente')) : '');
+    var fecha = val('an-fecha');
+    if(format === 'word') downloadInformeWord_(titulo, subtitulo, fecha, bodyText, informeFilename_(kind, titulo));
+    else downloadInformePdf_(titulo, subtitulo, fecha, bodyText, informeFilename_(kind, titulo));
+  };
+  function downloadInformeWord_(titulo, subtitulo, fecha, bodyText, filename){
+    if(typeof docx === 'undefined'){ toast('No se pudo cargar la librería de Word (revisa tu conexión a internet)'); return; }
+    var D = docx;
+    var children = [];
+    children.push(new D.Paragraph({ text: titulo, heading: D.HeadingLevel.HEADING_1 }));
+    children.push(new D.Paragraph({ children: [ new D.TextRun({ text: subtitulo, color: '666666' }) ], spacing: { after: 80 } }));
+    if(fecha) children.push(new D.Paragraph({ children: [ new D.TextRun({ text: 'Fecha del informe: ' + fecha, italics: true, color: '888888' }) ], spacing: { after: 240 } }));
+    parseInformeLines_(bodyText).forEach(function(l){
+      if(l.type === 'blank') return;
+      if(l.type === 'h1') children.push(new D.Paragraph({ text: l.text, heading: D.HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }));
+      else if(l.type === 'h2') children.push(new D.Paragraph({ text: l.text, heading: D.HeadingLevel.HEADING_3, spacing: { before: 160, after: 80 } }));
+      else if(l.type === 'bullet') children.push(new D.Paragraph({ text: l.text, bullet: { level: 0 }, spacing: { after: 60 } }));
+      else children.push(new D.Paragraph({ children: [ new D.TextRun(l.text) ], spacing: { after: 120 } }));
+    });
+    var doc = new D.Document({
+      sections: [{
+        properties: {
+          page: {
+            size: { orientation: D.PageOrientation.PORTRAIT, width: 11906, height: 16838 },
+            margin: { top: 1000, bottom: 1000, left: 1000, right: 1000 }
+          }
+        },
+        children: children
+      }]
+    });
+    D.Packer.toBlob(doc).then(function(blob){
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename + '.docx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast('Word descargado');
+    }).catch(function(){ toast('No se pudo generar el documento Word'); });
+  }
+  function downloadInformePdf_(titulo, subtitulo, fecha, bodyText, filename){
+    if(typeof window.jspdf === 'undefined'){ toast('No se pudo cargar la librería de PDF (revisa tu conexión a internet)'); return; }
+    var pdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    var pageW = pdf.internal.pageSize.getWidth();
+    var pageH = pdf.internal.pageSize.getHeight();
+    var margin = 18, maxW = pageW - margin * 2;
+    var y = margin;
+    function ensureSpace(h){
+      if(y + h > pageH - margin){ pdf.addPage(); y = margin; }
+    }
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16);
+    var titleLines = pdf.splitTextToSize(titulo, maxW);
+    ensureSpace(titleLines.length * 7);
+    pdf.text(titleLines, margin, y); y += titleLines.length * 7 + 2;
+
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(100);
+    var subLines = pdf.splitTextToSize(subtitulo, maxW);
+    ensureSpace(subLines.length * 5);
+    pdf.text(subLines, margin, y); y += subLines.length * 5 + 1;
+
+    if(fecha){
+      pdf.setFont('helvetica', 'italic'); pdf.setFontSize(9); pdf.setTextColor(140);
+      ensureSpace(6);
+      pdf.text('Fecha del informe: ' + fecha, margin, y); y += 9;
+    }
+    pdf.setTextColor(20);
+
+    parseInformeLines_(bodyText).forEach(function(l){
+      if(l.type === 'blank'){ y += 3; return; }
+      if(l.type === 'h1'){
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13);
+        var lines = pdf.splitTextToSize(l.text, maxW);
+        ensureSpace(lines.length * 6.5 + 4); y += 4;
+        pdf.text(lines, margin, y); y += lines.length * 6.5 + 2;
+        return;
+      }
+      if(l.type === 'h2'){
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        var lines2 = pdf.splitTextToSize(l.text, maxW);
+        ensureSpace(lines2.length * 5.5 + 3); y += 3;
+        pdf.text(lines2, margin, y); y += lines2.length * 5.5 + 2;
+        return;
+      }
+      pdf.setFont('helvetica', l.type === 'bullet' ? 'normal' : 'normal'); pdf.setFontSize(10.5);
+      var prefix = l.type === 'bullet' ? '•  ' : '';
+      var lines3 = pdf.splitTextToSize(prefix + l.text, l.type === 'bullet' ? maxW - 4 : maxW);
+      ensureSpace(lines3.length * 5.2 + 2);
+      pdf.text(lines3, l.type === 'bullet' ? margin + 4 : margin, y);
+      y += lines3.length * 5.2 + 2;
+    });
+
+    pdf.save(filename + '.pdf');
+    toast('PDF descargado');
+  }
 
   window.applyAdPaste = function(){
     var text = document.getElementById('ad-paste').value;
