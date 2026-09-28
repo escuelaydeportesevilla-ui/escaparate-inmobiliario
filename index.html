@@ -604,6 +604,13 @@
       </div>
       <div id="an-search-results" style="margin-top:8px;"></div>
     </div>
+
+    <div class="panel">
+      <h2>Repositorio de análisis</h2>
+      <p class="hint">Todos los informes guardados, más recientes primero. Toca uno para volver a verlo, editarlo o descargarlo.</p>
+      <button type="button" class="ghost" onclick="loadAnalisisRepo()" style="width:auto;">Actualizar lista</button>
+      <div id="an-repo-list" style="margin-top:12px;"></div>
+    </div>
   </div>
 </section>
 
@@ -799,7 +806,9 @@
     document.getElementById('tab-leads').setAttribute('aria-selected', name==='leads');
     document.getElementById('tab-visits').setAttribute('aria-selected', name==='visits');
     document.getElementById('tab-analisis').setAttribute('aria-selected', name==='analisis');
+    if(name === 'analisis' && !analisisRepoLoaded){ analisisRepoLoaded = true; loadAnalisisRepo(); }
   };
+  var analisisRepoLoaded = false;
 
   function val(id){ return document.getElementById(id).value.trim(); }
   function escapeHTML(s){
@@ -1136,20 +1145,24 @@
       "condiciones de financiación hipotecaria relevantes para esta operación (tipo de interés orientativo, " +
       "fijo/variable/mixto, % de financiación habitual), citando 3-4 entidades como referencia orientativa " +
       "(deja claro que son condiciones de mercado generales, sujetas a estudio bancario individual).\n\n" +
-      "ENTREGA EXACTAMENTE DOS DOCUMENTOS, delimitados así (respeta los marcadores tal cual, sin nada más " +
-      "antes o después de cada uno):\n\n" +
-      "===INFORME CLIENTE===\n" +
-      "(Máximo una carilla. Lenguaje claro, sencillo y cercano, sin tecnicismos financieros ni jerga. " +
-      "Explica la conclusión principal, el porqué en 2-3 ideas, y una recomendación práctica. Este " +
-      "documento se lo entregamos directamente al cliente.)\n" +
-      "===FIN INFORME CLIENTE===\n\n" +
-      "===INFORME INTERNO===\n" +
-      "(Documento profesional y técnico, de uso interno de la agencia. Debe incluir: la fecha del informe " +
-      "(" + fecha + "); la tabla/listado de comparables usados con sus datos y fuente; la metodología y los " +
-      "criterios profesionales empleados para valorar la oferta; el análisis detallado de viabilidad de la " +
-      "propuesta; y el apartado de entidades financieras investigado en el punto 4, con la fecha de esa " +
-      "consulta.)\n" +
-      "===FIN INFORME INTERNO===";
+      "ENTREGA EXACTAMENTE DOS DOCUMENTOS, cada uno DENTRO DE SU PROPIO BLOQUE DE CÓDIGO (```), para que " +
+      "pueda copiar cada uno con un solo clic desde el botón de copiar del bloque. No los mezcles en un " +
+      "mismo bloque y no metas nada más dentro del bloque aparte del texto del informe (el título de cada " +
+      "informe va FUERA del bloque, como encabezado normal).\n\n" +
+      "## INFORME PARA EL CLIENTE\n" +
+      "```\n" +
+      "(Aquí el informe, máximo una carilla. Lenguaje claro, sencillo y cercano, sin tecnicismos " +
+      "financieros ni jerga. Explica la conclusión principal, el porqué en 2-3 ideas, y una recomendación " +
+      "práctica. Este documento se lo entregamos directamente al cliente.)\n" +
+      "```\n\n" +
+      "## INFORME INTERNO\n" +
+      "```\n" +
+      "(Aquí el informe, documento profesional y técnico de uso interno de la agencia. Debe incluir: la " +
+      "fecha del informe (" + fecha + "); la tabla/listado de comparables usados con sus datos y fuente; " +
+      "la metodología y los criterios profesionales empleados para valorar la oferta; el análisis " +
+      "detallado de viabilidad de la propuesta; y el apartado de entidades financieras investigado en el " +
+      "punto 4, con la fecha de esa consulta.)\n" +
+      "```";
   }
   window.prepareAnalisisPrompt = function(){
     if(!analisisAd){ toast('Busca y selecciona primero un inmueble'); return; }
@@ -1182,6 +1195,7 @@
           if(!isUpdate && data.id) currentAnalisisId = data.id;
           toast('Análisis guardado en el Sheet');
           loadAnalisisHistoryForAd(analisisAd.id);
+          loadAnalisisRepo();
         } else {
           toast('No se pudo guardar el análisis');
         }
@@ -1215,8 +1229,10 @@
       '</div>';
     }).join('');
   }
-  window.selectAnalisisThread = function(i){
-    var a = analisisThreadsCache[i];
+  // Carga común de un registro de análisis (venga de la búsqueda por
+  // cliente, del histórico del inmueble o del repositorio general) en el
+  // formulario, para editarlo, re-exportarlo o simplemente volver a verlo.
+  function loadAnalisisRecord(a){
     if(!a) return;
     fetchAds().then(function(ads){
       var ad = ads.filter(function(x){ return x.id === a.adId; })[0];
@@ -1235,10 +1251,40 @@
       document.getElementById('an-informe-interno').value = a.informeInterno || '';
       document.getElementById('an-search-results').innerHTML = '';
       document.getElementById('an-search-cliente').value = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       toast('Análisis cargado: ' + (a.cliente || ''));
       loadAnalisisHistoryForAd(analisisAd.id);
     });
+  }
+  window.selectAnalisisThread = function(i){ loadAnalisisRecord(analisisThreadsCache[i]); };
+
+  // ---- repositorio: todos los análisis guardados, visibles siempre en la
+  // columna ancha de la derecha (sin tener que buscar nada) -----------------
+  var analisisRepoCache = [];
+  window.loadAnalisisRepo = function(){
+    var el = document.getElementById('an-repo-list');
+    if(!hasSheet()){ el.innerHTML = '<p class="empty-note">Configura la agenda arriba para ver el repositorio.</p>'; return; }
+    el.innerHTML = '<p class="empty-note">Cargando…</p>';
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=analisisThreads&q=')
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        analisisRepoCache = (data && data.analisis) || [];
+        renderAnalisisRepo(analisisRepoCache);
+      })
+      .catch(function(){ el.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>'; });
   };
+  function renderAnalisisRepo(list){
+    var el = document.getElementById('an-repo-list');
+    if(!list.length){ el.innerHTML = '<p class="empty-note">Todavía no hay ningún análisis guardado.</p>'; return; }
+    el.innerHTML = list.map(function(a, i){
+      return '<div class="ad-result" onclick="selectRepoAnalisis(' + i + ')">' +
+        '<div class="who">' + escapeHTML(a.cliente || '(sin cliente)') + ' · ' + escapeHTML(a.operacion || '') +
+          (a.precioPropuesto ? ' · ' + escapeHTML(String(a.precioPropuesto)) + ' €' : '') + '</div>' +
+        '<div class="what">' + escapeHTML(a.adTitulo || '') + (a.fecha ? ' · ' + escapeHTML(a.fecha) : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  window.selectRepoAnalisis = function(i){ loadAnalisisRecord(analisisRepoCache[i]); };
 
   // ---- exportar los informes (Word / PDF) — documento sencillo A4 vertical
   // con títulos y párrafos, distinto del maquetado a doble columna del
