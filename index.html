@@ -200,6 +200,16 @@
   .badge.ok{background:rgba(63,125,84,.15); color:var(--good);}
   .badge.off{background:rgba(177,73,60,.15); color:var(--bad);}
 
+  .save-status{display:inline-flex; align-items:center; gap:6px; font-size:.76rem; font-weight:700; padding:4px 11px; border-radius:999px; white-space:nowrap; transition:background .2s,color .2s;}
+  .save-status .dot{width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0;}
+  .save-status.st-new{background:var(--surface-2); color:var(--ink-soft);}
+  .save-status.st-unsaved{background:rgba(184,132,44,.18); color:var(--brand);}
+  .save-status.st-saving{background:rgba(184,132,44,.18); color:var(--brand);}
+  .save-status.st-saving .dot{animation:save-pulse 1s ease-in-out infinite;}
+  .save-status.st-saved{background:rgba(63,125,84,.15); color:var(--good);}
+  .save-status.st-error{background:rgba(177,73,60,.15); color:var(--bad);}
+  @keyframes save-pulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+
   .tour-thumb{width:220px; max-width:100%; aspect-ratio:16/9; border-radius:10px; overflow:hidden; position:relative; cursor:pointer; background:#000; border:1px solid var(--line);}
   .tour-thumb iframe{width:100%; height:100%; border:0; pointer-events:none;}
   .tour-thumb-play{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); color:#fff; font-size:.78rem; font-weight:600; text-align:center; padding:8px;}
@@ -342,7 +352,10 @@
 <section class="view active" id="view-ads">
   <div class="grid">
     <form class="panel" id="ad-form" onsubmit="return false;">
-      <h2>Ficha del inmueble</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Ficha del inmueble</h2>
+        <span class="save-status st-new" id="save-status"><span class="dot"></span><span id="save-status-text">Nuevo anuncio</span></span>
+      </div>
       <p class="hint">Rellena los datos clave. El prompt para redactar lo prepara la app.</p>
 
       <div class="step-head first"><span class="num">1</span><h3>Cargar o crear</h3></div>
@@ -468,8 +481,11 @@
 <section class="view" id="view-leads">
   <div class="grid">
     <div class="panel">
-      <h2>Responder a un cliente</h2>
-      <p class="hint">Añade aquí cada mensaje según lo recibas, para tenerlo a mano sin salir a WhatsApp.</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Responder a un cliente</h2>
+        <span class="save-status st-new" id="lead-save-status"><span class="dot"></span><span id="lead-save-status-text">Sin mensajes</span></span>
+      </div>
+      <p class="hint">Añade aquí cada mensaje según lo recibas, para tenerlo a mano sin salir a WhatsApp. <strong>Se guarda en tu Sheet solo cuando hay un anuncio vinculado (paso 1) y un nombre de cliente escrito</strong> — sin esos dos datos, lo que veas aquí se pierde al recargar la página.</p>
 
       <div class="step-head first"><span class="num">1</span><h3>Localizar al cliente</h3></div>
       <div class="field">
@@ -582,8 +598,11 @@
 <section class="view" id="view-analisis">
   <div class="grid">
     <div class="panel">
-      <h2>Análisis de propuestas</h2>
-      <p class="hint">Estudia una oferta de compra o de venta sobre un inmueble: la IA compara precios de mercado y redacta dos informes (uno para el cliente, otro de uso interno).</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Análisis de propuestas</h2>
+        <span class="save-status st-new" id="an-save-status"><span class="dot"></span><span id="an-save-status-text">Nuevo análisis</span></span>
+      </div>
+      <p class="hint">Estudia una oferta de compra o de venta sobre un inmueble: la IA compara precios de mercado y redacta dos informes (uno para el cliente, otro de uso interno). <strong>Nada se guarda hasta que pulses "Guardar análisis"</strong> (paso 4, al final).</p>
 
       <div class="step-head first"><span class="num">1</span><h3>Inmueble y cliente</h3></div>
       <div class="field">
@@ -1031,15 +1050,16 @@
       if(!auto) toast('Configura la agenda arriba para guardar en el Sheet');
       return;
     }
+    setSaveStatus('save-status','saving');
     fetch(config.url, {
       method: 'POST',
       body: JSON.stringify({ action: 'updateAd', token: config.token, ad: buildFullAdPayload() })
     }).then(function(r){ return r.json(); })
       .then(function(data){
-        if(data && data.ok){ toast('Enlace del tour guardado en el Sheet'); adsCache = null; }
-        else { toast('No se pudo guardar el tour en el Sheet'); }
+        if(data && data.ok){ toast('Enlace del tour guardado en el Sheet'); adsCache = null; setSaveStatus('save-status','saved'); }
+        else { toast('No se pudo guardar el tour en el Sheet'); setSaveStatus('save-status','error'); }
       })
-      .catch(function(){ toast('No se pudo guardar el tour en el Sheet'); });
+      .catch(function(){ toast('No se pudo guardar el tour en el Sheet'); setSaveStatus('save-status','error'); });
   };
 
   // ---- análisis de propuestas (informe de IA compra/venta) ---------------
@@ -1146,6 +1166,7 @@
     document.getElementById('an-notas').value = a.notas || '';
     document.getElementById('an-informe-cliente').value = a.informeCliente || '';
     document.getElementById('an-informe-interno').value = a.informeInterno || '';
+    setSaveStatus('an-save-status', 'saved');
     toast('Análisis cargado: ' + (a.cliente || ''));
   };
   window.newAnalisis = function(){
@@ -1155,6 +1176,7 @@
     });
     document.getElementById('an-operacion').value = 'Compra';
     document.getElementById('an-fecha').valueAsDate = new Date();
+    setSaveStatus('an-save-status', 'new', 'Nuevo análisis');
     toast('Formulario de análisis en blanco');
   };
   (function initAnalisisDate(){
@@ -1248,6 +1270,7 @@
     };
     if(!payload.cliente){ toast('Indica el nombre del cliente'); return; }
     var isUpdate = !!currentAnalisisId;
+    setSaveStatus('an-save-status', 'saving');
     fetch(config.url, {
       method: 'POST',
       body: JSON.stringify({ action: isUpdate ? 'updateAnalisis' : 'addAnalisis', token: config.token, analisis: payload })
@@ -1258,11 +1281,13 @@
           toast('Análisis guardado en el Sheet');
           loadAnalisisHistoryForAd(analisisAd.id);
           loadAnalisisRepo();
+          setSaveStatus('an-save-status', 'saved');
         } else {
           toast('No se pudo guardar el análisis');
+          setSaveStatus('an-save-status', 'error');
         }
       })
-      .catch(function(){ toast('No se pudo guardar el análisis'); });
+      .catch(function(){ toast('No se pudo guardar el análisis'); setSaveStatus('an-save-status', 'error'); });
   };
 
   // Carga común de un registro de análisis (venga del histórico del
@@ -1286,6 +1311,7 @@
       document.getElementById('an-informe-cliente').value = a.informeCliente || '';
       document.getElementById('an-informe-interno').value = a.informeInterno || '';
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      setSaveStatus('an-save-status', 'saved');
       toast('Análisis cargado: ' + (a.cliente || ''));
       loadAnalisisHistoryForAd(analisisAd.id);
     });
@@ -1462,37 +1488,36 @@
     if(parts.INSTAGRAM) document.getElementById('out-instagram').textContent = parts.INSTAGRAM;
     if(parts.WHATSAPP) document.getElementById('out-whatsapp').textContent = parts.WHATSAPP;
 
-    if(hasSheet()){
-      var newId = 'a' + Date.now();
-      fetch(config.url, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'addAd', token: config.token,
-          ad: {
-            id: newId, titulo: p.titulo, operacion: p.operacion, tipo: p.tipo,
-            ubicacion: p.ubicacion, precio: p.precio, metros: p.metros,
-            habitaciones: p.habitaciones, banos: p.banos, estado: p.estado,
-            caracteristicas: p.caracteristicas, tono: p.tono,
-            portal: parts.PORTAL, instagram: parts.INSTAGRAM, whatsapp: parts.WHATSAPP,
-            imagenUrl: val('portal-img-url'),
-            tourFolderUrl: val('f-tourfolder'), tourUrl: val('f-toururl'),
-            planta: p.planta
-          }
-        })
-      }).then(function(r){ return r.json(); })
-        .then(function(data){
-          if(data && data.ok){
-            toast('Tarjetas actualizadas y anuncio guardado en tu Sheet');
-            currentAdId = newId;
-            adsCache = null;
-            updateActualizarState();
-          }
-          else { toast('Tarjetas actualizadas (no se pudo guardar en el Sheet)'); }
-        })
-        .catch(function(){ toast('Tarjetas actualizadas (no se pudo guardar en el Sheet)'); });
-    } else {
+    if(!hasSheet()){
       toast('Tarjetas actualizadas. Configura la agenda arriba para guardar histórico de anuncios.');
+      setSaveStatus('save-status','new','Sin Sheet configurado');
+      return;
     }
+
+    // Si ya había un anuncio cargado, esto ACTUALIZA ese mismo registro en
+    // el Sheet en vez de crear uno nuevo (antes siempre creaba una fila
+    // nueva, aunque se estuviera regenerando el texto de un anuncio ya
+    // guardado, lo que dejaba duplicados).
+    var isNew = !currentAdId;
+    var newId = isNew ? ('a' + Date.now()) : currentAdId;
+    var payload = buildFullAdPayload();
+    payload.id = newId;
+    setSaveStatus('save-status','saving');
+    fetch(config.url, {
+      method: 'POST',
+      body: JSON.stringify({ action: isNew ? 'addAd' : 'updateAd', token: config.token, ad: payload })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){
+          toast(isNew ? 'Tarjetas actualizadas y anuncio guardado en tu Sheet' : 'Tarjetas actualizadas y anuncio sincronizado en tu Sheet');
+          currentAdId = newId;
+          adsCache = null;
+          updateActualizarState();
+          setSaveStatus('save-status','saved');
+        }
+        else { toast('Tarjetas actualizadas (no se pudo guardar en el Sheet)'); setSaveStatus('save-status','error'); }
+      })
+      .catch(function(){ toast('Tarjetas actualizadas (no se pudo guardar en el Sheet)'); setSaveStatus('save-status','error'); });
   };
   // ---- search & load saved ads --------------------------------------------
   var adsCache = null;
@@ -1500,6 +1525,52 @@
   function updateActualizarState(){
     document.getElementById('btn-actualizar').disabled = !currentAdId;
   }
+
+  // ---- indicador de guardado (reutilizado en varias pestañas) -----------
+  // Estados comunes: 'new' (nada que guardar todavía), 'unsaved' (hay
+  // cambios/datos que no están en el Sheet), 'saving', 'saved', 'error'.
+  // badgeId identifica qué indicador de la pantalla actualizar (cada
+  // pestaña tiene el suyo); labelOverride permite un texto distinto al
+  // genérico cuando el contexto lo pide (p. ej. en Respuestas).
+  var SAVE_STATUS_LABEL = {
+    new: 'Nada que guardar',
+    unsaved: 'Cambios sin guardar',
+    saving: 'Guardando…',
+    saved: 'Guardado',
+    error: 'No se pudo guardar'
+  };
+  function setSaveStatus(badgeId, state, labelOverride){
+    var el = document.getElementById(badgeId);
+    var textEl = document.getElementById(badgeId + '-text');
+    if(!el || !textEl) return;
+    el.className = 'save-status st-' + state;
+    var label = labelOverride || SAVE_STATUS_LABEL[state] || '';
+    if(state === 'saved' && !labelOverride){
+      var hora = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      label = 'Guardado · ' + hora;
+    }
+    textEl.textContent = label;
+  }
+  // Marca "cambios sin guardar" en cuanto se toca cualquier campo de un
+  // formulario, pero solo si venimos de un estado "guardado" — así el
+  // usuario siempre sabe si lo que ve en pantalla coincide con lo que hay
+  // en el Sheet o no. Reutilizable: se usa en Anuncios y en Análisis.
+  function markDirty(badgeId){
+    var el = document.getElementById(badgeId);
+    if(el && el.classList.contains('st-saved')) setSaveStatus(badgeId, 'unsaved');
+  }
+  function wireDirtyTracking(badgeId, ids){
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.addEventListener('input', function(){ markDirty(badgeId); });
+      el.addEventListener('change', function(){ markDirty(badgeId); });
+    });
+  }
+  wireDirtyTracking('save-status', ['f-titulo','f-operacion','f-tipo','f-ubicacion','f-precio','f-metros',
+    'f-planta','f-hab','f-banos','f-estado','f-caract','f-tono','portal-img-url']);
+  wireDirtyTracking('an-save-status', ['an-cliente','an-telefono','an-operacion','an-precio','an-fecha',
+    'an-notas','an-informe-cliente','an-informe-interno']);
   window.searchAds = function(){
     if(!hasSheet()){ toast('Configura la agenda arriba para buscar anuncios guardados'); return; }
     var q = val('ad-search').toLowerCase();
@@ -1564,6 +1635,7 @@
     document.getElementById('ad-search').value = '';
     currentAdId = a.id;
     updateActualizarState();
+    setSaveStatus('save-status','saved');
     toast('Anuncio cargado: ' + (a.titulo || ''));
   };
 
@@ -1589,15 +1661,16 @@
   window.updateCurrentAd = function(){
     if(!currentAdId){ toast('Primero busca y carga un anuncio guardado'); return; }
     if(!hasSheet()){ toast('Configura la agenda arriba para guardar en el Sheet'); return; }
+    setSaveStatus('save-status','saving');
     fetch(config.url, {
       method: 'POST',
       body: JSON.stringify({ action: 'updateAd', token: config.token, ad: buildFullAdPayload() })
     }).then(function(r){ return r.json(); })
       .then(function(data){
-        if(data && data.ok){ toast('Anuncio actualizado en el Sheet'); adsCache = null; }
-        else { toast('No se pudo actualizar el anuncio en el Sheet'); }
+        if(data && data.ok){ toast('Anuncio actualizado en el Sheet'); adsCache = null; setSaveStatus('save-status','saved'); }
+        else { toast('No se pudo actualizar el anuncio en el Sheet'); setSaveStatus('save-status','error'); }
       })
-      .catch(function(){ toast('No se pudo actualizar el anuncio en el Sheet'); });
+      .catch(function(){ toast('No se pudo actualizar el anuncio en el Sheet'); setSaveStatus('save-status','error'); });
   };
 
   window.reloadFromSheet = function(){
@@ -1627,6 +1700,7 @@
     document.getElementById('ad-search').value = '';
     currentAdId = null;
     updateActualizarState();
+    setSaveStatus('save-status','new','Nuevo anuncio');
     toast('Formulario listo para un anuncio nuevo');
   };
 
@@ -2001,6 +2075,7 @@
       document.getElementById('conv-cliente').value = '';
       conversation = [];
       renderConversation();
+      setSaveStatus('lead-save-status', 'new', 'Sin mensajes');
     });
   };
   window.clearLinkAd = function(){
@@ -2009,6 +2084,7 @@
     document.getElementById('conv-cliente').value = '';
     renderConversation();
     renderLinkedChip();
+    setSaveStatus('lead-save-status', 'new', 'Sin mensajes');
   };
   window.newConversation = function(){
     conversation = [];
@@ -2016,6 +2092,7 @@
     document.getElementById('f-new-msg').value = '';
     renderConversation();
     document.getElementById('conv-cliente').focus();
+    setSaveStatus('lead-save-status', 'new', 'Sin mensajes');
     toast('Conversación en blanco. Escribe el nombre del cliente.');
   };
   var convThreadsCache = [];
@@ -2056,9 +2133,9 @@
   };
   window.loadClienteConversation = function(){
     var cliente = val('conv-cliente');
-    if(!cliente){ conversation = []; renderConversation(); return; }
-    if(!linkedAd){ toast('Vincula primero un anuncio arriba'); return; }
-    if(!hasSheet()){ conversation = []; renderConversation(); return; }
+    if(!cliente){ conversation = []; renderConversation(); setSaveStatus('lead-save-status', 'new', 'Sin mensajes'); return; }
+    if(!linkedAd){ toast('Vincula primero un anuncio arriba'); setSaveStatus('lead-save-status', 'unsaved', 'No se guarda: falta vincular un anuncio'); return; }
+    if(!hasSheet()){ conversation = []; renderConversation(); setSaveStatus('lead-save-status', 'unsaved', 'Sin Sheet configurado'); return; }
     document.getElementById('conversation-thread').innerHTML = '<p class="empty-note">Cargando conversación…</p>';
     fetch(config.url + '?token=' + encodeURIComponent(config.token) +
       '&action=conversation&adId=' + encodeURIComponent(linkedAd.id) + '&cliente=' + encodeURIComponent(cliente))
@@ -2068,11 +2145,13 @@
           return { id: m.id, role: m.role, text: m.texto };
         }) : [];
         renderConversation();
+        setSaveStatus('lead-save-status', conversation.length ? 'saved' : 'new', conversation.length ? undefined : 'Sin mensajes');
         toast(conversation.length ? 'Conversación cargada' : 'Cliente nuevo, sin conversación previa');
       })
       .catch(function(){
         conversation = [];
         renderConversation();
+        setSaveStatus('lead-save-status', 'error', 'No se pudo cargar');
         toast('No se pudo cargar la conversación guardada');
       });
   };
@@ -2173,6 +2252,7 @@
     var m = conversation[index];
     conversation.splice(index, 1);
     renderConversation();
+    if(!conversation.length) setSaveStatus('lead-save-status', 'new', 'Sin mensajes');
     if(m && m.id && hasSheet()){
       fetch(config.url, {
         method: 'POST',
@@ -2183,12 +2263,25 @@
 
   // Guarda un mensaje en el Sheet, vinculado al anuncio + cliente activos.
   // Sin anuncio, sin nombre de cliente o sin Sheet configurado, el mensaje
-  // solo queda en memoria (se pierde al recargar), como antes.
+  // solo queda en memoria (se pierde al recargar) — el indicador de arriba
+  // avisa de esto en cuanto pasa, para que no sea una sorpresa luego.
   function saveMessage(m){
     var cliente = val('conv-cliente');
-    if(!linkedAd){ toast('Añadido (vincula un anuncio arriba para guardarlo)'); return; }
-    if(!cliente){ toast('Añadido (escribe el nombre del cliente arriba para guardarlo)'); return; }
-    if(!hasSheet()) return;
+    if(!linkedAd){
+      setSaveStatus('lead-save-status', 'unsaved', 'No se guarda: falta vincular un anuncio');
+      toast('Añadido (vincula un anuncio arriba para guardarlo)');
+      return;
+    }
+    if(!cliente){
+      setSaveStatus('lead-save-status', 'unsaved', 'No se guarda: falta el nombre del cliente');
+      toast('Añadido (escribe el nombre del cliente arriba para guardarlo)');
+      return;
+    }
+    if(!hasSheet()){
+      setSaveStatus('lead-save-status', 'unsaved', 'Sin Sheet configurado');
+      return;
+    }
+    setSaveStatus('lead-save-status', 'saving');
     fetch(config.url, {
       method: 'POST',
       body: JSON.stringify({
@@ -2196,8 +2289,11 @@
         message: { adId: linkedAd.id, cliente: cliente, role: m.role, texto: m.text }
       })
     }).then(function(r){ return r.json(); })
-      .then(function(data){ if(data && data.ok){ m.id = data.id; } })
-      .catch(function(){});
+      .then(function(data){
+        if(data && data.ok){ m.id = data.id; setSaveStatus('lead-save-status', 'saved'); }
+        else { setSaveStatus('lead-save-status', 'error'); }
+      })
+      .catch(function(){ setSaveStatus('lead-save-status', 'error'); });
   }
 
   function renderConversation(){
