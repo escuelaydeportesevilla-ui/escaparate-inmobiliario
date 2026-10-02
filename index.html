@@ -1475,7 +1475,8 @@
             caracteristicas: p.caracteristicas, tono: p.tono,
             portal: parts.PORTAL, instagram: parts.INSTAGRAM, whatsapp: parts.WHATSAPP,
             imagenUrl: val('portal-img-url'),
-            tourFolderUrl: val('f-tourfolder'), tourUrl: val('f-toururl')
+            tourFolderUrl: val('f-tourfolder'), tourUrl: val('f-toururl'),
+            planta: p.planta
           }
         })
       }).then(function(r){ return r.json(); })
@@ -1581,7 +1582,8 @@
       caracteristicas: p.caracteristicas, tono: p.tono,
       portal: portalBody, instagram: instagram, whatsapp: whatsapp,
       imagenUrl: val('portal-img-url'),
-      tourFolderUrl: val('f-tourfolder'), tourUrl: val('f-toururl')
+      tourFolderUrl: val('f-tourfolder'), tourUrl: val('f-toururl'),
+      planta: p.planta
     };
   }
   window.updateCurrentAd = function(){
