@@ -139,6 +139,7 @@
 
   .ig-frame{max-width:320px; margin-inline:auto; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
   .ig-photo{aspect-ratio:1/1; background:linear-gradient(155deg, var(--clay), var(--brand)); display:flex; align-items:center; justify-content:center; color:#fff; text-align:center; padding:20px; font-family:'Fraunces',serif; font-size:1rem;}
+  .ig-photo.has-photo{background-size:cover; background-position:center; color:#fff; text-shadow:0 1px 4px rgba(0,0,0,.5);}
   .ig-caption{padding:12px 14px; white-space:pre-wrap; overflow-wrap:anywhere; font-size:.86rem; line-height:1.5;}
 
   .wa-wrap{background:var(--surface-2); border-radius:10px; padding:16px; max-width:420px; margin-inline:auto;}
@@ -412,8 +413,9 @@
         <div class="preview-head"><span class="tag">Portal inmobiliario</span></div>
         <div class="preview-body" id="out-portal"><p class="placeholder">Aquí aparecerá el anuncio largo, listo para Idealista o Fotocasa.</p></div>
         <div class="field" style="padding:0 18px; margin-top:2px;">
-          <label for="portal-img-url">URL de imagen (Google Drive, opcional, para el Word)</label>
-          <input id="portal-img-url" placeholder="Pega el enlace para compartir de Google Drive">
+          <label for="portal-img-url">URL de imagen (Google Drive, opcional)</label>
+          <input id="portal-img-url" placeholder="Pega el enlace para compartir de Google Drive" onchange="renderAdPhoto()">
+          <p class="hint" style="margin:6px 0 0;">Se usa en el Word exportado y, solo como recordatorio visual, aquí abajo — no se publica en Instagram automáticamente.</p>
         </div>
         <div class="copybar" style="gap:8px;">
           <button class="ghost" onclick="copyBlock('portal')">Copiar texto</button>
@@ -425,7 +427,7 @@
         <div class="preview-head"><span class="tag">Instagram</span></div>
         <div class="preview-body">
           <div class="ig-frame">
-            <div class="ig-photo">Foto de portada<br>del inmueble aquí</div>
+            <div class="ig-photo" id="ig-photo"><span id="ig-photo-label">Foto de portada<br>del inmueble aquí</span></div>
             <div class="ig-caption" id="out-instagram"><span class="placeholder">Aquí aparecerá la descripción corta con hashtags.</span></div>
           </div>
         </div>
@@ -1552,6 +1554,7 @@
     document.getElementById('out-instagram').textContent = a.instagram || '';
     document.getElementById('out-whatsapp').textContent = a.whatsapp || '';
     document.getElementById('portal-img-url').value = a.imagenUrl || '';
+    renderAdPhoto();
     document.getElementById('f-tourfolder').value = a.tourFolderUrl || '';
     document.getElementById('f-toururl').value = a.tourUrl || '';
     renderTourEmbed();
@@ -1616,6 +1619,7 @@
     document.getElementById('out-whatsapp').textContent = '';
     var pasteEl = document.getElementById('ad-paste'); if(pasteEl) pasteEl.value = '';
     var imgUrlEl = document.getElementById('portal-img-url'); if(imgUrlEl) imgUrlEl.value = '';
+    renderAdPhoto();
     document.getElementById('tour-embed').innerHTML = '';
     document.getElementById('ad-search-results').innerHTML = '';
     document.getElementById('ad-search').value = '';
@@ -1664,6 +1668,41 @@
       'https://lh3.googleusercontent.com/d/' + id
     ];
   }
+
+  // Muestra la foto de portada (enlace de Drive) dentro de la tarjeta de
+  // Instagram, solo como recordatorio visual dentro de la app — no afecta
+  // a lo que realmente se publica en Instagram.
+  window.renderAdPhoto = function(){
+    var box = document.getElementById('ig-photo');
+    var label = document.getElementById('ig-photo-label');
+    if(!box) return;
+    var raw = (document.getElementById('portal-img-url') || {}).value || '';
+    raw = raw.trim();
+    box.classList.remove('has-photo');
+    box.style.backgroundImage = '';
+    if(!raw){
+      if(label){ label.style.display = ''; label.innerHTML = 'Foto de portada<br>del inmueble aquí'; }
+      return;
+    }
+    if(label){ label.style.display = ''; label.innerHTML = 'Cargando foto…'; }
+    var candidates = driveDirectUrls(raw);
+    function tryNext(i){
+      if(i >= candidates.length){
+        if(label){ label.innerHTML = 'No se pudo cargar<br>la foto (revisa que<br>el enlace sea público)'; }
+        return;
+      }
+      var img = new Image();
+      img.onload = function(){
+        box.style.backgroundImage = "url('" + candidates[i] + "')";
+        box.classList.add('has-photo');
+        if(label) label.style.display = 'none';
+      };
+      img.onerror = function(){ tryNext(i + 1); };
+      img.src = candidates[i];
+    }
+    tryNext(0);
+  };
+
   function fetchImageBlob(rawUrl){
     var candidates = driveDirectUrls(rawUrl);
     function tryNext(i){
