@@ -68,10 +68,20 @@
   .brandmark h1{font-size:clamp(1.25rem,1rem + 1vw,1.6rem);}
   .brandmark p{margin:2px 0 0; color:var(--ink-soft); font-size:.85rem;}
 
-  nav.tabs{display:flex; gap:6px; background:var(--surface-2); padding:5px; border-radius:12px; border:1px solid var(--line); flex-wrap:wrap;}
-  nav.tabs button{font:inherit; font-weight:600; font-size:.9rem; color:var(--ink-soft); background:transparent; border:none; padding:9px 16px; border-radius:8px; cursor:pointer;}
+  nav.tabs{display:flex; gap:6px; background:var(--surface-2); padding:5px; border-radius:12px; border:1px solid var(--line); overflow-x:auto; scrollbar-width:none; max-width:100%;}
+  nav.tabs::-webkit-scrollbar{display:none;}
+  nav.tabs button{font:inherit; font-weight:600; font-size:.9rem; color:var(--ink-soft); background:transparent; border:none; padding:9px 16px; border-radius:8px; cursor:pointer; white-space:nowrap; flex-shrink:0;}
   nav.tabs button[aria-selected="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow);}
   nav.tabs button:focus-visible{outline:2px solid var(--brand); outline-offset:2px;}
+  @media (max-width:480px){
+    nav.tabs{gap:2px;}
+    nav.tabs button{padding:8px 10px; font-size:.8rem;}
+  }
+
+  .icon-btn{position:relative; width:40px; height:40px; flex-shrink:0; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); font-size:1.15rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .icon-btn:hover{border-color:var(--brand); color:var(--brand-ink);}
+  .icon-btn .dot{position:absolute; top:-2px; right:-2px; width:10px; height:10px; border-radius:50%; background:var(--bad); border:2px solid var(--paper); display:none;}
+  .icon-btn .dot.show{display:block;}
 
   section.view{display:none;}
   section.view.active{display:block;}
@@ -82,6 +92,17 @@
   .panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow);}
   .panel h2{font-size:1.1rem; margin-bottom:4px;}
   .panel .hint{color:var(--ink-soft); font-size:.82rem; margin:0 0 16px;}
+
+  /* Cabecera de bloque dentro de un formulario largo: solo se usa cuando el
+     contenido es realmente una secuencia de pasos (buscar → generar →
+     pegar → guardar), nunca como decoración. */
+  .step-head{display:flex; align-items:center; gap:10px; margin:0 0 14px; padding-top:18px; border-top:1px solid var(--line);}
+  .step-head.first{padding-top:0; border-top:none;}
+  .step-head .num{display:flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--surface-2); color:var(--brand-ink); font-size:.74rem; font-weight:700; flex-shrink:0;}
+  .step-head h3{font-size:.95rem; font-weight:600; color:var(--ink); margin:0; font-family:'Public Sans',sans-serif;}
+
+  .form-actions{display:flex; flex-direction:column; gap:10px; margin-top:20px; padding-top:18px; border-top:1px solid var(--line);}
+  .form-actions .ghost{width:auto; align-self:flex-start;}
 
   .field{margin-bottom:13px; min-width:0;}
   .field label{display:block; font-size:.78rem; font-weight:600; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:.03em;}
@@ -174,10 +195,7 @@
   .ad-result .who{font-weight:700; font-size:.86rem;}
   .ad-result .what{color:var(--ink-soft); font-size:.76rem; margin-top:2px;}
 
-  details.config{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 20px; margin-bottom:18px;}
-  details.config summary{cursor:pointer; font-weight:700; font-size:.92rem;}
-  details.config[open] summary{margin-bottom:12px;}
-  .badge{display:inline-flex; align-items:center; gap:6px; font-size:.78rem; font-weight:600; padding:3px 10px; border-radius:999px; margin-left:10px;}
+  .badge{display:inline-flex; align-items:center; gap:6px; font-size:.78rem; font-weight:600; padding:3px 10px; border-radius:999px;}
   .badge.ok{background:rgba(63,125,84,.15); color:var(--good);}
   .badge.off{background:rgba(177,73,60,.15); color:var(--bad);}
 
@@ -273,37 +291,52 @@
   </nav>
   <div style="display:flex; gap:8px;">
     <button class="ghost" onclick="refreshAll()" title="Recargar anuncios, visitas y conversaciones desde el Sheet">Refrescar</button>
+    <button class="icon-btn" onclick="openSettingsModal()" aria-label="Ajustes" title="Ajustes: agenda (Google Sheet) y datos de la inmobiliaria">
+      <span aria-hidden="true">⚙</span>
+      <span class="dot" id="settings-dot"></span>
+    </button>
     <button class="ghost" onclick="logout()" title="Cerrar sesión en este navegador">Cerrar sesión</button>
   </div>
 </header>
 
-<details class="config" id="config-panel">
-  <summary>Configuración de la agenda (Google Sheet) <span class="badge off" id="config-badge">sin configurar</span></summary>
-  <p class="hint" style="margin:0 0 12px;">Pega aquí la URL del Web App de Apps Script y el token que definiste (ver <code>apps-script/Code.gs</code>). Se guardan solo en este navegador.</p>
-  <div class="field">
-    <label for="cfg-url">URL del Web App (termina en /exec)</label>
-    <input id="cfg-url" placeholder="https://script.google.com/macros/s/…/exec">
-  </div>
-  <div class="field">
-    <label for="cfg-token">Token</label>
-    <input id="cfg-token" placeholder="tu-token-secreto">
-  </div>
-  <button class="secondary" onclick="saveConfig()">Guardar configuración</button>
-</details>
+<div class="modal-overlay" id="settings-modal" onclick="if(event.target===this) closeSettingsModal();">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-head">
+      <h2 id="settings-title">Ajustes</h2>
+      <button class="modal-close" onclick="closeSettingsModal()" aria-label="Cerrar">✕</button>
+    </div>
 
-<details class="config" id="brand-panel">
-  <summary>Datos de la inmobiliaria (para el Word) <span class="badge off" id="brand-badge">sin configurar</span></summary>
-  <p class="hint" style="margin:0 0 12px;">Se usan como encabezado en el documento Word que exportas desde la tarjeta Portal inmobiliario. Se guardan solo en este navegador.</p>
-  <div class="field">
-    <label for="cfg-logo-url">URL del logo de la inmobiliaria (Google Drive)</label>
-    <input id="cfg-logo-url" placeholder="Pega el enlace para compartir de Google Drive">
+    <div class="step-head first">
+      <h3>Agenda (Google Sheet)</h3>
+      <span class="badge off" id="config-badge" style="margin-left:auto;">sin configurar</span>
+    </div>
+    <p class="hint" style="margin:0 0 12px;">Pega aquí la URL del Web App de Apps Script y el token que definiste (ver <code>apps-script/Code.gs</code>). Se guardan solo en este navegador.</p>
+    <div class="field">
+      <label for="cfg-url">URL del Web App (termina en /exec)</label>
+      <input id="cfg-url" placeholder="https://script.google.com/macros/s/…/exec">
+    </div>
+    <div class="field">
+      <label for="cfg-token">Token</label>
+      <input id="cfg-token" placeholder="tu-token-secreto">
+    </div>
+
+    <div class="step-head">
+      <h3>Datos de la inmobiliaria</h3>
+      <span class="badge off" id="brand-badge" style="margin-left:auto;">sin configurar</span>
+    </div>
+    <p class="hint" style="margin:0 0 12px;">Se usan como encabezado en el documento Word que exportas desde la tarjeta Portal inmobiliario.</p>
+    <div class="field">
+      <label for="cfg-logo-url">URL del logo de la inmobiliaria (Google Drive)</label>
+      <input id="cfg-logo-url" placeholder="Pega el enlace para compartir de Google Drive">
+    </div>
+    <div class="row2">
+      <div class="field"><label for="cfg-agente">Nombre del agente</label><input id="cfg-agente" placeholder="Introduce el nombre del agente"></div>
+      <div class="field"><label for="cfg-telefono">Teléfono de contacto</label><input id="cfg-telefono" placeholder="600 000 000"></div>
+    </div>
+
+    <button class="primary" style="margin-top:4px;" onclick="saveConfig()">Guardar configuración</button>
   </div>
-  <div class="row2">
-    <div class="field"><label for="cfg-agente">Nombre del agente</label><input id="cfg-agente" placeholder="Introduce el nombre del agente"></div>
-    <div class="field"><label for="cfg-telefono">Teléfono de contacto</label><input id="cfg-telefono" placeholder="600 000 000"></div>
-  </div>
-  <button class="secondary" onclick="saveConfig()">Guardar datos</button>
-</details>
+</div>
 
 <section class="view active" id="view-ads">
   <div class="grid">
@@ -311,11 +344,12 @@
       <h2>Ficha del inmueble</h2>
       <p class="hint">Rellena los datos clave. El prompt para redactar lo prepara la app.</p>
 
+      <div class="step-head first"><span class="num">1</span><h3>Cargar o crear</h3></div>
       <div class="field">
         <label for="ad-search">Buscar anuncio guardado (por título)</label>
         <div style="display:flex; gap:8px;">
           <input id="ad-search" placeholder="Escribe parte del título…">
-          <button type="button" class="secondary" style="width:auto; margin-top:0; white-space:nowrap;" onclick="searchAds()">Buscar</button>
+          <button type="button" class="ghost" style="white-space:nowrap;" onclick="searchAds()">Buscar</button>
         </div>
         <div id="ad-search-results"></div>
         <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
@@ -325,6 +359,7 @@
         </div>
       </div>
 
+      <div class="step-head"><span class="num">2</span><h3>Datos del inmueble</h3></div>
       <div class="field"><label for="f-titulo">Título interno</label><input id="f-titulo" placeholder="Introduce un título para identificarlo, ej. Piso en Triana"></div>
 
       <div class="row2">
@@ -361,8 +396,9 @@
         <select id="f-tono"><option selected>Profesional y cercano</option><option>Directo y comercial</option><option>Premium / lujo</option><option>Familiar y tranquilo</option></select>
       </div>
 
+      <div class="step-head"><span class="num">3</span><h3>Generar los textos</h3></div>
       <button class="primary" onclick="prepareAdPrompt()">Abrir en Claude</button>
-      <button class="secondary" onclick="copyAdPrompt()">Solo copiar el prompt</button>
+      <button class="ghost" onclick="copyAdPrompt()" style="margin-top:8px;">Solo copiar el prompt</button>
 
       <div class="field" style="margin-top:16px;">
         <label for="ad-paste">Pega aquí la respuesta de Claude</label>
@@ -411,7 +447,7 @@
             <p class="hint" style="margin:6px 0 0;">El prompt pide a Claude las fotos directamente en el chat, no lee esta carpeta — es solo para que la tengas anotada.</p>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button type="button" class="secondary" style="width:auto; margin-top:0;" onclick="prepareTourPrompt()">Abrir en Claude</button>
+            <button type="button" class="primary" style="width:auto; margin-top:0;" onclick="prepareTourPrompt()">Abrir en Claude</button>
             <button type="button" class="ghost" onclick="copyTourPrompt()">Solo copiar el prompt</button>
           </div>
           <p class="hint" style="margin:10px 0 0;">Pégalo en una sesión de Claude con herramientas de archivo/vídeo (la misma que usas para tus Reels) — el chat estándar no genera MP4. Cuando te pida las fotos, pégalas ahí. Descarga el vídeo resultante (~15s) y súbelo a YouTube como "Oculto" (no listado): así la vista previa y el reinicio funcionan siempre, en móvil y escritorio, sin pedir cuenta. Pega aquí el enlace público (también admite Drive u otros, con vista previa más simple):</p>
@@ -428,104 +464,116 @@
 </section>
 
 <section class="view" id="view-leads">
-  <div class="thread panel">
-    <h2>Responder a un cliente</h2>
-    <p class="hint">Añade aquí cada mensaje según lo recibas, para tenerlo a mano sin salir a WhatsApp.</p>
+  <div class="grid">
+    <div class="panel">
+      <h2>Responder a un cliente</h2>
+      <p class="hint">Añade aquí cada mensaje según lo recibas, para tenerlo a mano sin salir a WhatsApp.</p>
 
-    <div class="field">
-      <label for="conv-search">Buscar conversación por cliente (en todos los anuncios)</label>
-      <div class="row2">
-        <input id="conv-search" placeholder="Escribe el nombre o teléfono del cliente…">
-        <button type="button" class="secondary" onclick="searchConversations()" style="margin-top:0;">Buscar</button>
+      <div class="step-head first"><span class="num">1</span><h3>Localizar al cliente</h3></div>
+      <div class="field">
+        <label for="conv-search">Buscar conversación por cliente (en todos los anuncios)</label>
+        <div class="row2">
+          <input id="conv-search" placeholder="Escribe el nombre o teléfono del cliente…">
+          <button type="button" class="ghost" onclick="searchConversations()" style="margin-top:0;">Buscar</button>
+        </div>
+        <div id="conv-search-results"></div>
       </div>
-      <div id="conv-search-results"></div>
+
+      <div class="field">
+        <label for="link-ad-search">Vincular con un anuncio (buscar por título interno)</label>
+        <div class="row2">
+          <input id="link-ad-search" placeholder="Escribe parte del título…">
+          <button type="button" class="ghost" onclick="searchLinkAd()" style="margin-top:0;">Buscar</button>
+        </div>
+        <div id="link-ad-results"></div>
+        <div id="linked-ad-chip" style="display:none; margin-top:8px;"></div>
+      </div>
+
+      <div class="field">
+        <label for="conv-cliente">Cliente (nombre o teléfono)</label>
+        <div class="row2">
+          <input id="conv-cliente" placeholder="Ej. María López · 600111222" onchange="loadClienteConversation()">
+          <button type="button" class="ghost" onclick="newConversation()" style="margin-top:0;">Nueva conversación</button>
+        </div>
+        <p class="hint" style="margin:6px 0 0;">Cambia el nombre para separar conversaciones de distintos clientes sobre el mismo anuncio.</p>
+      </div>
+
+      <div class="step-head"><span class="num">2</span><h3>Añadir su mensaje</h3></div>
+      <div class="field">
+        <label for="f-new-msg">Nuevo mensaje del cliente</label>
+        <textarea id="f-new-msg" style="min-height:64px" placeholder="Pega aquí lo último que te ha escrito…"></textarea>
+      </div>
+      <button class="secondary" onclick="addClientMessage()">Añadir a la conversación</button>
+
+      <div class="step-head"><span class="num">3</span><h3>Generar la respuesta</h3></div>
+      <div class="field">
+        <label for="f-slots">Huecos disponibles para visita (uno por línea)</label>
+        <textarea id="f-slots" style="min-height:64px" placeholder="Introduce un hueco por línea, ej.: Miércoles 24/09 · 17:30h"></textarea>
+      </div>
+      <button class="primary" onclick="prepareReplyPrompt()">Abrir en Claude</button>
+      <button class="ghost" onclick="copyReplyPrompt()" style="margin-top:8px;">Solo copiar el prompt</button>
+
+      <div class="field" style="margin-top:16px;">
+        <label for="reply-paste">Pega aquí la respuesta de Claude</label>
+        <textarea id="reply-paste" style="min-height:70px" placeholder="Pega el texto que te devuelva Claude…"></textarea>
+      </div>
+      <button class="secondary" onclick="applyReplyPaste()">Usar como borrador</button>
     </div>
 
-    <div class="field">
-      <label for="link-ad-search">Vincular con un anuncio (buscar por título interno)</label>
-      <div class="row2">
-        <input id="link-ad-search" placeholder="Escribe parte del título…">
-        <button type="button" class="secondary" onclick="searchLinkAd()" style="margin-top:0;">Buscar</button>
-      </div>
-      <div id="link-ad-results"></div>
-      <div id="linked-ad-chip" style="display:none; margin-top:8px;"></div>
-    </div>
-
-    <div class="field">
-      <label for="conv-cliente">Cliente (nombre o teléfono)</label>
-      <div class="row2">
-        <input id="conv-cliente" placeholder="Ej. María López · 600111222" onchange="loadClienteConversation()">
-        <button type="button" class="secondary" onclick="newConversation()" style="margin-top:0;">Nueva conversación</button>
-      </div>
-      <p class="hint" style="margin:6px 0 0;">Cambia el nombre para separar conversaciones de distintos clientes sobre el mismo anuncio.</p>
-    </div>
-
-    <div class="field">
-      <label>Conversación</label>
-      <div id="conversation-thread" class="conversation-thread">
+    <div class="panel">
+      <h2>Conversación</h2>
+      <p class="hint">Historial del cliente seleccionado y borrador de respuesta.</p>
+      <div id="conversation-thread" class="conversation-thread" style="max-height:460px;">
         <p class="empty-note">Todavía no has añadido ningún mensaje.</p>
       </div>
-    </div>
 
-    <div class="field">
-      <label for="f-new-msg">Nuevo mensaje del cliente</label>
-      <textarea id="f-new-msg" style="min-height:64px" placeholder="Pega aquí lo último que te ha escrito…"></textarea>
-    </div>
-    <button class="secondary" onclick="addClientMessage()">Añadir a la conversación</button>
-
-    <div class="field" style="margin-top:14px;">
-      <label for="f-slots">Huecos disponibles para visita (uno por línea)</label>
-      <textarea id="f-slots" style="min-height:64px" placeholder="Introduce un hueco por línea, ej.: Miércoles 24/09 · 17:30h"></textarea>
-    </div>
-
-    <button class="primary" onclick="prepareReplyPrompt()">Abrir en Claude</button>
-    <button class="secondary" onclick="copyReplyPrompt()">Solo copiar el prompt</button>
-
-    <div class="field" style="margin-top:16px;">
-      <label for="reply-paste">Pega aquí la respuesta de Claude</label>
-      <textarea id="reply-paste" style="min-height:70px" placeholder="Pega el texto que te devuelva Claude…"></textarea>
-    </div>
-    <button class="secondary" onclick="applyReplyPaste()">Usar como borrador</button>
-
-    <div class="reply-suggestion empty" id="out-reply" style="margin-top:12px;">El borrador de respuesta aparecerá aquí.</div>
-    <div class="copybar" style="border:none; padding:10px 0 0; justify-content:space-between;">
-      <button class="ghost" onclick="markReplySent()">Marcar como enviada</button>
-      <button class="ghost" onclick="copyBlock('reply')">Copiar respuesta</button>
+      <h2 style="margin-top:22px; font-size:1rem;">Borrador de respuesta</h2>
+      <div class="reply-suggestion empty" id="out-reply" style="margin-top:10px;">El borrador de respuesta aparecerá aquí.</div>
+      <div style="display:flex; justify-content:space-between; gap:10px; margin-top:12px; padding-top:14px; border-top:1px solid var(--line);">
+        <button class="ghost" onclick="markReplySent()">Marcar como enviada</button>
+        <button class="ghost" onclick="copyBlock('reply')">Copiar respuesta</button>
+      </div>
     </div>
   </div>
 </section>
 
 <section class="view" id="view-visits">
-  <div class="panel">
-    <h2>Agendar visita</h2>
-    <p class="hint">Se guarda en tu Google Sheet si has configurado la agenda arriba; si no, se guarda solo en este navegador.</p>
+  <div class="grid">
+    <div class="panel">
+      <h2>Agendar visita</h2>
+      <p class="hint">Se guarda en tu Google Sheet si has configurado la agenda (⚙ arriba); si no, se guarda solo en este navegador.</p>
 
-    <div class="field">
-      <label for="visit-ad-search">Buscar inmueble ya creado (por título interno) — opcional</label>
-      <div class="row2">
-        <input id="visit-ad-search" placeholder="Escribe parte del título…">
-        <button type="button" class="secondary" onclick="searchVisitAd()" style="margin-top:0;">Buscar</button>
+      <div class="step-head first"><span class="num">1</span><h3>Inmueble (opcional)</h3></div>
+      <div class="field">
+        <label for="visit-ad-search">Buscar inmueble ya creado (por título interno)</label>
+        <div class="row2">
+          <input id="visit-ad-search" placeholder="Escribe parte del título…">
+          <button type="button" class="ghost" onclick="searchVisitAd()" style="margin-top:0;">Buscar</button>
+        </div>
+        <div id="visit-ad-results"></div>
+        <div id="visit-ad-chip" style="display:none; margin-top:8px;"></div>
+        <div id="visit-ad-clients" style="margin-top:8px;"></div>
+        <p class="hint" style="margin:8px 0 0;">Puedes dejarlo en blanco para una visita sin inmueble asociado.</p>
       </div>
-      <div id="visit-ad-results"></div>
-      <div id="visit-ad-chip" style="display:none; margin-top:8px;"></div>
-      <div id="visit-ad-clients" style="margin-top:8px;"></div>
-      <p class="hint" style="margin:8px 0 0;">Puedes dejarlo en blanco para una visita sin inmueble asociado.</p>
+
+      <div class="step-head"><span class="num">2</span><h3>Datos de la visita</h3></div>
+      <div class="field"><label for="v-cliente">Cliente</label><input id="v-cliente" placeholder="Nombre y apellidos, o selecciónalo arriba"></div>
+      <div class="row2">
+        <div class="field"><label for="v-telefono">Teléfono</label><input id="v-telefono" placeholder="600 000 000"></div>
+        <div class="field"><label for="v-inmueble">Inmueble</label><input id="v-inmueble" placeholder="Se rellena solo, o escríbelo a mano"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date"></div>
+        <div class="field"><label for="v-hora">Hora</label><input id="v-hora" type="time"></div>
+      </div>
+      <button class="primary" onclick="scheduleVisit()">Añadir a la agenda</button>
     </div>
 
-    <div class="field"><label for="v-cliente">Cliente</label><input id="v-cliente" placeholder="Nombre y apellidos, o selecciónalo arriba"></div>
-    <div class="row2">
-      <div class="field"><label for="v-telefono">Teléfono</label><input id="v-telefono" placeholder="600 000 000"></div>
-      <div class="field"><label for="v-inmueble">Inmueble</label><input id="v-inmueble" placeholder="Se rellena solo, o escríbelo a mano"></div>
+    <div class="panel">
+      <h2>Próximas visitas</h2>
+      <p class="hint">Toca una visita para ver el detalle o eliminarla.</p>
+      <div id="visits-list" style="margin-top:8px;"></div>
     </div>
-
-    <div class="row2">
-      <div class="field"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date"></div>
-      <div class="field"><label for="v-hora">Hora</label><input id="v-hora" type="time"></div>
-    </div>
-    <button class="primary" onclick="scheduleVisit()">Añadir a la agenda</button>
-
-    <h2 style="margin-top:22px; font-size:1rem;">Próximas visitas</h2>
-    <div id="visits-list" style="margin-top:8px;"></div>
   </div>
 </section>
 
@@ -535,11 +583,12 @@
       <h2>Análisis de propuestas</h2>
       <p class="hint">Estudia una oferta de compra o de venta sobre un inmueble: la IA compara precios de mercado y redacta dos informes (uno para el cliente, otro de uso interno).</p>
 
+      <div class="step-head first"><span class="num">1</span><h3>Inmueble y cliente</h3></div>
       <div class="field">
         <label for="an-ad-search">Buscar inmueble</label>
         <div class="row2">
           <input id="an-ad-search" placeholder="Escribe parte del título…">
-          <button type="button" class="secondary" onclick="searchAnalisisAd()" style="margin-top:0;">Buscar</button>
+          <button type="button" class="ghost" onclick="searchAnalisisAd()" style="margin-top:0;">Buscar</button>
         </div>
         <div id="an-ad-results"></div>
         <div id="an-ad-chip" style="display:none; margin-top:8px;"></div>
@@ -553,7 +602,8 @@
       </div>
       <div id="an-ad-clients" style="margin-top:4px;"></div>
 
-      <div class="row2" style="margin-top:10px;">
+      <div class="step-head"><span class="num">2</span><h3>Datos de la propuesta</h3></div>
+      <div class="row2">
         <div class="field">
           <label for="an-operacion">Tipo de propuesta</label>
           <select id="an-operacion">
@@ -568,13 +618,13 @@
         <div class="field"><label for="an-notas">Notas adicionales (opcional)</label><input id="an-notas" placeholder="Condiciones, plazos, financiación previa…"></div>
       </div>
 
-      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
-        <button type="button" class="secondary" style="width:auto; margin-top:0;" onclick="prepareAnalisisPrompt()">Abrir en Claude</button>
-        <button type="button" class="ghost" onclick="copyAnalisisPrompt()">Solo copiar el prompt</button>
-      </div>
+      <div class="step-head"><span class="num">3</span><h3>Generar el informe con IA</h3></div>
+      <button type="button" class="primary" onclick="prepareAnalisisPrompt()">Abrir en Claude</button>
+      <button type="button" class="ghost" onclick="copyAnalisisPrompt()" style="margin-top:8px;">Solo copiar el prompt</button>
       <p class="hint" style="margin:10px 0 0;">Pégalo en una sesión de Claude con acceso a internet (puede necesitar buscar inmuebles comparables y entidades financieras). Cuando termine, te devolverá los dos informes claramente separados: pega cada uno en su caja correspondiente aquí abajo.</p>
 
-      <div class="field" style="margin-top:14px;">
+      <div class="step-head"><span class="num">4</span><h3>Pegar y exportar los informes</h3></div>
+      <div class="field">
         <label for="an-informe-cliente">Informe para el cliente (lenguaje sencillo)</label>
         <textarea id="an-informe-cliente" rows="8" placeholder="Pega aquí el informe para el cliente…"></textarea>
       </div>
@@ -592,9 +642,9 @@
         <button type="button" class="ghost" onclick="downloadInforme('interno','pdf')">Descargar PDF</button>
       </div>
 
-      <div class="copybar" style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="ghost" onclick="newAnalisis()">Nuevo análisis</button>
-        <button class="primary" style="margin-top:0;" onclick="saveAnalisis()">Guardar análisis</button>
+      <div class="form-actions">
+        <button type="button" class="ghost" onclick="newAnalisis()">Nuevo análisis</button>
+        <button class="primary" onclick="saveAnalisis()">Guardar análisis</button>
       </div>
     </div>
 
@@ -758,6 +808,7 @@
     updateConfigBadge();
     updateBrandBadge();
     toast('Datos guardados');
+    closeSettingsModal();
     loadVisits();
     if(hasSheet()){
       hideGate();
@@ -774,14 +825,27 @@
   };
   function updateConfigBadge(){
     var b = document.getElementById('config-badge');
-    if(config.url && config.token){ b.textContent = 'conectado'; b.className = 'badge ok'; }
-    else { b.textContent = 'sin configurar'; b.className = 'badge off'; }
+    if(config.url && config.token){ b.textContent = 'conectado'; b.className = 'badge ok'; b.style.marginLeft = 'auto'; }
+    else { b.textContent = 'sin configurar'; b.className = 'badge off'; b.style.marginLeft = 'auto'; }
+    updateSettingsDot();
   }
   function updateBrandBadge(){
     var b = document.getElementById('brand-badge');
-    if(config.logoUrl || config.agente || config.telefono){ b.textContent = 'configurado'; b.className = 'badge ok'; }
-    else { b.textContent = 'sin configurar'; b.className = 'badge off'; }
+    if(config.logoUrl || config.agente || config.telefono){ b.textContent = 'configurado'; b.className = 'badge ok'; b.style.marginLeft = 'auto'; }
+    else { b.textContent = 'sin configurar'; b.className = 'badge off'; b.style.marginLeft = 'auto'; }
   }
+  // Punto rojo sobre el icono de ajustes: aviso visible sin tener que abrir
+  // el modal, solo para lo imprescindible (la conexión con la agenda).
+  function updateSettingsDot(){
+    var d = document.getElementById('settings-dot');
+    if(d) d.classList.toggle('show', !hasSheet());
+  }
+  window.openSettingsModal = function(){
+    document.getElementById('settings-modal').classList.add('show');
+  };
+  window.closeSettingsModal = function(){
+    document.getElementById('settings-modal').classList.remove('show');
+  };
   function hasSheet(){ return !!(config.url && config.token); }
 
   // ---- toast ----------------------------------------------------------
