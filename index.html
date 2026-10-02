@@ -259,9 +259,7 @@
   .docx-preview-text .price{font-weight:700; margin:0 0 4px; font-size:.92em;}
   .docx-preview-text .specs{color:#666; margin:0 0 10px; font-size:.76em;}
   .docx-preview-text p{margin:0 0 8px;}
-  .docx-preview-image{flex:1 1 50%; display:flex; flex-direction:column; gap:4%; min-width:0; min-height:0;}
-  .docx-preview-image .img-box{flex:1 1 auto; display:flex; align-items:center; justify-content:center; min-width:0; min-height:0; overflow:hidden;}
-  .docx-preview-image .img-box.map-box{flex:0 0 36%;}
+  .docx-preview-image{flex:1 1 50%; display:flex; align-items:center; justify-content:center; min-width:0;}
   .docx-preview-image img{max-width:100%; max-height:100%; object-fit:contain;}
   .docx-preview-image .placeholder{color:#999; font-size:.8em; font-family:inherit;}
 </style>
@@ -346,12 +344,6 @@
       <div class="field"><label for="cfg-agente">Nombre del agente</label><input id="cfg-agente" placeholder="Introduce el nombre del agente"></div>
       <div class="field"><label for="cfg-telefono">Teléfono de contacto</label><input id="cfg-telefono" placeholder="600 000 000"></div>
     </div>
-    <div class="field">
-      <label for="cfg-maps-key">API key de Google Maps (Static Maps), opcional</label>
-      <input id="cfg-maps-key" placeholder="Pega aquí tu API key de Google Cloud">
-      <p class="hint" style="margin:6px 0 0;">Solo hace falta si quieres incrustar el mapa de ubicación en el Word del portal. Se crea gratis en Google Cloud Console (API "Maps Static API"); el uso de una inmobiliaria pequeña no supera el nivel gratuito.</p>
-    </div>
-
     <button class="primary" style="margin-top:4px;" onclick="saveConfig()">Guardar configuración</button>
   </div>
 </div>
@@ -436,11 +428,6 @@
           <label for="portal-img-url">URL de imagen (Google Drive, opcional)</label>
           <input id="portal-img-url" placeholder="Pega el enlace para compartir de Google Drive" onchange="renderAdPhoto()">
           <p class="hint" style="margin:6px 0 0;">Se usa en el Word exportado y, solo como recordatorio visual, aquí abajo — no se publica en Instagram automáticamente.</p>
-        </div>
-        <div class="field" style="padding:0 18px; margin-top:12px;">
-          <label for="portal-maps-url">Ubicación en Google Maps (opcional, para el Word)</label>
-          <input id="portal-maps-url" placeholder="Pega el enlace completo de Google Maps (con @lat,lng) o unas coordenadas">
-          <p class="hint" style="margin:6px 0 0;">Copia el enlace de la barra de direcciones de Google Maps (no el enlace corto para compartir), o pega directamente "lat, lng". Necesita una API key configurada en ⚙ arriba.</p>
         </div>
         <div class="copybar" style="gap:8px;">
           <button class="ghost" onclick="copyBlock('portal')">Copiar texto</button>
@@ -754,7 +741,7 @@
 
   var CONFIG_KEY = 'escaparate_config_v1';
   var VISITS_KEY = 'escaparate_visits_v1';
-  var config = { url: '', token: '', logoUrl: '', agente: '', telefono: '', mapsApiKey: '' };
+  var config = { url: '', token: '', logoUrl: '', agente: '', telefono: '' };
   var visits = [];
 
   // ---- config -------------------------------------------------------
@@ -768,7 +755,6 @@
     document.getElementById('cfg-logo-url').value = config.logoUrl || '';
     document.getElementById('cfg-agente').value = config.agente || '';
     document.getElementById('cfg-telefono').value = config.telefono || '';
-    document.getElementById('cfg-maps-key').value = config.mapsApiKey || '';
     updateConfigBadge();
     updateBrandBadge();
     if(hasSheet()){
@@ -823,11 +809,9 @@
           config.logoUrl = data.brand.logoUrl || '';
           config.agente = data.brand.agente || '';
           config.telefono = data.brand.telefono || '';
-          config.mapsApiKey = data.brand.mapsApiKey || '';
           document.getElementById('cfg-logo-url').value = config.logoUrl;
           document.getElementById('cfg-agente').value = config.agente;
           document.getElementById('cfg-telefono').value = config.telefono;
-          document.getElementById('cfg-maps-key').value = config.mapsApiKey;
           try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
           updateBrandBadge();
         }
@@ -840,7 +824,6 @@
     config.logoUrl = document.getElementById('cfg-logo-url').value.trim();
     config.agente = document.getElementById('cfg-agente').value.trim();
     config.telefono = document.getElementById('cfg-telefono').value.trim();
-    config.mapsApiKey = document.getElementById('cfg-maps-key').value.trim();
     try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch(e){}
     updateConfigBadge();
     updateBrandBadge();
@@ -853,7 +836,7 @@
         method: 'POST',
         body: JSON.stringify({
           action: 'saveBrand', token: config.token,
-          brand: { logoUrl: config.logoUrl, agente: config.agente, telefono: config.telefono, mapsApiKey: config.mapsApiKey }
+          brand: { logoUrl: config.logoUrl, agente: config.agente, telefono: config.telefono }
         })
       }).then(function(r){ return r.json(); })
         .then(function(data){ if(data && data.ok) toast('Sincronizado en el Sheet'); })
@@ -1584,7 +1567,7 @@
     });
   }
   wireDirtyTracking('save-status', ['f-titulo','f-operacion','f-tipo','f-ubicacion','f-precio','f-metros',
-    'f-planta','f-hab','f-banos','f-estado','f-caract','f-tono','portal-img-url','portal-maps-url']);
+    'f-planta','f-hab','f-banos','f-estado','f-caract','f-tono','portal-img-url']);
   wireDirtyTracking('an-save-status', ['an-cliente','an-telefono','an-operacion','an-precio','an-fecha',
     'an-notas','an-informe-cliente','an-informe-interno']);
   window.searchAds = function(){
@@ -1643,7 +1626,6 @@
     document.getElementById('out-whatsapp').textContent = a.whatsapp || '';
     document.getElementById('portal-img-url').value = a.imagenUrl || '';
     renderAdPhoto();
-    document.getElementById('portal-maps-url').value = a.mapsUrl || '';
     document.getElementById('f-tourfolder').value = a.tourFolderUrl || '';
     document.getElementById('f-toururl').value = a.tourUrl || '';
     renderTourEmbed();
@@ -1672,7 +1654,7 @@
       portal: portalBody, instagram: instagram, whatsapp: whatsapp,
       imagenUrl: val('portal-img-url'),
       tourFolderUrl: val('f-tourfolder'), tourUrl: val('f-toururl'),
-      planta: p.planta, mapsUrl: val('portal-maps-url')
+      planta: p.planta
     };
   }
   window.updateCurrentAd = function(){
@@ -1712,7 +1694,6 @@
     var pasteEl = document.getElementById('ad-paste'); if(pasteEl) pasteEl.value = '';
     var imgUrlEl = document.getElementById('portal-img-url'); if(imgUrlEl) imgUrlEl.value = '';
     renderAdPhoto();
-    var mapsUrlEl = document.getElementById('portal-maps-url'); if(mapsUrlEl) mapsUrlEl.value = '';
     document.getElementById('tour-embed').innerHTML = '';
     document.getElementById('ad-search-results').innerHTML = '';
     document.getElementById('ad-search').value = '';
@@ -1751,40 +1732,6 @@
   };
 
   // ---- exportar Portal a Word (A4 horizontal, imagen en el margen derecho) --
-  // Extrae "lat,lng" de un enlace de Google Maps (varios formatos posibles
-  // según cómo se haya copiado) o de un texto ya escrito como coordenadas.
-  // Devuelve {lat, lng} o null si no se reconoce ningún patrón.
-  function parseLatLng(raw){
-    var text = (raw || '').trim();
-    if(!text) return null;
-    var patterns = [
-      /@(-?\d+\.\d+),(-?\d+\.\d+)/,        // .../@40.4168,-3.7038,15z
-      /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,     // enlaces "embed" (!3d=lat, !4d=lng)
-      /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,    // enlaces antiguos ?q=lat,lng
-      /^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/   // coordenadas sueltas "lat, lng"
-    ];
-    for(var i = 0; i < patterns.length; i++){
-      var m = text.match(patterns[i]);
-      if(m) return { lat: m[1], lng: m[2] };
-    }
-    return null;
-  }
-  // Descarga el mapa estático de Google (Maps Static API) para la ubicación
-  // dada. Igual que fetchImageBlob, puede fallar por CORS o por una key mal
-  // configurada — el llamante decide qué hacer si la promesa falla.
-  function fetchMapImageBlob(lat, lng, apiKey){
-    var url = 'https://maps.googleapis.com/maps/api/staticmap?center=' + lat + ',' + lng +
-      '&zoom=16&size=640x400&scale=2&maptype=roadmap&markers=color:0xb8842c%7C' + lat + ',' + lng +
-      '&key=' + encodeURIComponent(apiKey);
-    return fetch(url, { mode: 'cors' }).then(function(r){
-      if(!r.ok) throw new Error('bad-status');
-      return r.blob();
-    }).then(function(b){
-      if(b && b.type && b.type.indexOf('image') === -1) throw new Error('not-image');
-      return b;
-    });
-  }
-
   function driveDirectUrls(rawUrl){
     var url = (rawUrl || '').trim();
     if(!url) return [];
@@ -1879,7 +1826,6 @@
     var specs = Array.prototype.map.call(portalEl.querySelectorAll('.portal-specs span'), function(s){ return s.textContent; }).join(' · ');
     var body = (portalEl.querySelector('.portal-body') || {}).textContent || '';
     var imgUrl = val('portal-img-url');
-    var mapsRaw = val('portal-maps-url');
     var agente = config.agente || '';
     var telefono = config.telefono || '';
 
@@ -1892,27 +1838,9 @@
       toast('No se pudo descargar el logo (comprueba que el enlace de Drive sea público). Se genera sin logo.');
       return null;
     }) : Promise.resolve(null);
-    var mapPromise;
-    if(!mapsRaw){
-      mapPromise = Promise.resolve(null);
-    } else {
-      var coords = parseLatLng(mapsRaw);
-      if(!coords){
-        toast('No he reconocido coordenadas en ese enlace de Maps. Se genera sin el mapa.');
-        mapPromise = Promise.resolve(null);
-      } else if(!config.mapsApiKey){
-        toast('Configura una API key de Google Maps en ⚙ para incrustar el mapa. Se genera sin él.');
-        mapPromise = Promise.resolve(null);
-      } else {
-        mapPromise = fetchMapImageBlob(coords.lat, coords.lng, config.mapsApiKey).then(imageInfo).catch(function(){
-          toast('No se pudo descargar el mapa (revisa la API key en ⚙). Se genera sin él.');
-          return null;
-        });
-      }
-    }
 
-    Promise.all([imagePromise, logoPromise, mapPromise]).then(function(res){
-      pendingWordExport = { titulo: titulo, precio: precio, specs: specs, body: body, image: res[0], logo: res[1], map: res[2], agente: agente, telefono: telefono };
+    Promise.all([imagePromise, logoPromise]).then(function(res){
+      pendingWordExport = { titulo: titulo, precio: precio, specs: specs, body: body, image: res[0], logo: res[1], agente: agente, telefono: telefono };
       showWordPreview(pendingWordExport);
     });
   };
@@ -1947,18 +1875,9 @@
       (data.specs ? '<p class="specs">' + escapeHTML(data.specs) + '</p>' : '') +
       (data.body || '').split('\n').filter(Boolean).map(function(l){ return '<p>' + escapeHTML(l) + '</p>'; }).join('') +
     '</div>';
-    html += '<div class="docx-preview-image">';
-    if(data.image || data.map){
-      if(data.image) html += '<div class="img-box">' +
-        '<img src="' + arrayBufferToObjectUrl(data.image.data) + '"></div>';
-      // El mapa solo se encoge a una franja inferior cuando comparte espacio
-      // con la foto; si va solo, ocupa todo el hueco como haría la foto.
-      if(data.map) html += '<div class="img-box' + (data.image ? ' map-box' : '') + '">' +
-        '<img src="' + arrayBufferToObjectUrl(data.map.data) + '"></div>';
-    } else {
-      html += '<div class="img-box"><span class="placeholder">(sin imagen)</span></div>';
-    }
-    html += '</div>';
+    html += '<div class="docx-preview-image">' +
+      (data.image ? '<img src="' + arrayBufferToObjectUrl(data.image.data) + '">' : '<span class="placeholder">(sin imagen)</span>') +
+    '</div>';
     html += '</div>';
     document.getElementById('word-preview-page').innerHTML = html;
     document.getElementById('word-preview-modal').classList.add('show');
@@ -1991,7 +1910,7 @@
     var d = pendingWordExport;
     window.closeWordPreview();
     toast('Generando documento Word…');
-    buildAndDownloadPortalDocx(d.titulo, d.precio, d.specs, d.body, d.image, d.logo, d.agente, d.telefono, d.map);
+    buildAndDownloadPortalDocx(d.titulo, d.precio, d.specs, d.body, d.image, d.logo, d.agente, d.telefono);
   };
   // Genera el PDF fotografiando la propia vista previa en pantalla (el mismo
   // #word-preview-page que ya ves), así que siempre coincide con lo que
@@ -2046,7 +1965,7 @@
       ] }) ]
     });
   }
-  function buildAndDownloadPortalDocx(titulo, precio, specs, body, image, logo, agente, telefono, map){
+  function buildAndDownloadPortalDocx(titulo, precio, specs, body, image, logo, agente, telefono){
     var D = docx;
     var children = [];
     children.push(new D.Paragraph({ text: titulo, heading: D.HeadingLevel.HEADING_1 }));
@@ -2056,24 +1975,14 @@
       children.push(new D.Paragraph({ children: [ new D.TextRun(line) ], spacing: { after: 120 } }));
     });
 
-    // La foto ocupa menos alto si además hay mapa, para que ambas quepan
-    // apiladas en la misma columna derecha sin desbordar el folio A4.
-    var rightCellChildren = [];
+    var rightCellChildren;
     if(image){
-      var sz = fitSize(image.w, image.h, 420, map ? 390 : 620);
-      rightCellChildren.push(new D.Paragraph({
+      var sz = fitSize(image.w, image.h, 420, 620);
+      rightCellChildren = [ new D.Paragraph({
         alignment: D.AlignmentType.CENTER,
-        spacing: map ? { after: 160 } : undefined,
         children: [ new D.ImageRun({ data: image.data, transformation: { width: sz.w, height: sz.h }, type: 'png' }) ]
-      }));
-    }
-    if(map){
-      var msz = fitSize(map.w, map.h, 420, image ? 220 : 620);
-      rightCellChildren.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [
-        new D.ImageRun({ data: map.data, transformation: { width: msz.w, height: msz.h }, type: 'png' })
-      ] }));
-    }
-    if(!rightCellChildren.length){
+      }) ];
+    } else {
       rightCellChildren = [ new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [
         new D.TextRun({ text: '(sin imagen)', color: '999999' })
       ] }) ];
