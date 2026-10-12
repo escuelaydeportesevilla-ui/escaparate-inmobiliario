@@ -299,6 +299,7 @@
     <button role="tab" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas</button>
     <button role="tab" id="tab-visits" aria-selected="false" onclick="switchView('visits')">Visitas</button>
     <button role="tab" id="tab-analisis" aria-selected="false" onclick="switchView('analisis')">Análisis</button>
+    <button role="tab" id="tab-captacion" aria-selected="false" onclick="switchView('captacion')">Captación</button>
   </nav>
   <div style="display:flex; gap:8px;">
     <button class="ghost" onclick="refreshAll()" title="Recargar anuncios, visitas y conversaciones desde el Sheet">Refrescar</button>
@@ -680,6 +681,85 @@
   </div>
 </section>
 
+<section class="view" id="view-captacion">
+  <div class="grid">
+    <div class="panel">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Captación de inmuebles</h2>
+        <span class="save-status st-new" id="cap-save-status"><span class="dot"></span><span id="cap-save-status-text">Nueva captación</span></span>
+      </div>
+      <p class="hint">Apunta los pocos datos que tengas de una vivienda captada y genera una carta de presentación para proponer una primera visita al propietario. <strong>Nada se guarda hasta que pulses "Guardar captación"</strong> (paso 4). Basta con un dato: contacto, teléfono o ubicación.</p>
+
+      <div class="step-head first"><span class="num">1</span><h3>Datos que ya tienes</h3></div>
+      <div class="row2">
+        <div class="field"><label for="cap-contacto">Persona de contacto</label><input id="cap-contacto" placeholder="Nombre del propietario"></div>
+        <div class="field"><label for="cap-telefono">Teléfono</label><input id="cap-telefono" placeholder="600 000 000"></div>
+      </div>
+      <div class="field"><label for="cap-ubicacion">Ubicación del inmueble</label><input id="cap-ubicacion" placeholder="Calle, barrio o zona y ciudad"></div>
+      <div class="row2">
+        <div class="field">
+          <label for="cap-tipo">Tipo de inmueble</label>
+          <select id="cap-tipo">
+            <option>Sin especificar</option><option>Piso</option><option>Casa / Chalet</option>
+            <option>Ático</option><option>Local</option><option>Terreno</option><option>Otro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cap-estado">Estado de la captación</label>
+          <select id="cap-estado">
+            <option>Pendiente de contactar</option><option>Contactado</option><option>Visita fijada</option>
+            <option>Encargo firmado</option><option>Descartada</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label for="cap-notas">Notas (opcional)</label><textarea id="cap-notas" rows="3" placeholder="Cómo llegó el contacto, qué sabes de la vivienda, mejor hora para llamar…"></textarea></div>
+
+      <div class="step-head"><span class="num">2</span><h3>Generar el memorando con IA</h3></div>
+      <div class="field">
+        <label for="cap-tono">Tono de la carta</label>
+        <select id="cap-tono">
+          <option>Cercano y profesional</option><option>Formal e institucional</option><option>Directo y breve</option>
+        </select>
+      </div>
+      <button type="button" class="primary" onclick="prepareMemoPrompt()">Abrir en Claude</button>
+      <button type="button" class="ghost" onclick="copyMemoPrompt()" style="margin-top:8px;">Solo copiar el prompt</button>
+      <p class="hint" style="margin:10px 0 0;">Claude redacta la carta solo con lo que hayas rellenado, sin inventar datos. Copia el resultado y pégalo en el paso 3.</p>
+
+      <div class="step-head"><span class="num">3</span><h3>Pegar y exportar el memorando</h3></div>
+      <div class="field">
+        <label for="cap-memorando">Memorando (carta de presentación)</label>
+        <textarea id="cap-memorando" rows="12" placeholder="Pega aquí la carta que te ha devuelto Claude…"></textarea>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="ghost" onclick="downloadMemo('word')">Descargar Word</button>
+        <button type="button" class="ghost" onclick="downloadMemo('pdf')">Descargar PDF</button>
+      </div>
+      <p class="hint" style="margin:8px 0 0;">La cabecera con el logo, el nombre de Cristina Castro del Olmo, REMAX ATICA y su teléfono (⚙ Configuración), la fecha y la firma se añaden solas.</p>
+
+      <div class="step-head"><span class="num">4</span><h3>Imagen para ChatGPT (opcional)</h3></div>
+      <button type="button" class="ghost" onclick="copyCapImagePrompt()" style="margin-top:0;">Copiar prompt de imagen</button>
+      <button type="button" class="ghost" onclick="openCapImageChatGPT()" style="margin-top:8px;">Abrir en ChatGPT</button>
+      <p class="hint" style="margin:10px 0 0;">Genera una imagen de ambiente (sin texto ni logos) para acompañar la carta. No es una foto del inmueble real.</p>
+
+      <div class="form-actions">
+        <button type="button" class="ghost" onclick="newCaptacion()">Nueva captación</button>
+        <button class="primary" onclick="saveCaptacion()">Guardar captación</button>
+        <button type="button" class="ghost" id="cap-delete-btn" onclick="deleteCaptacionUI()" style="display:none; color:var(--clay);">Eliminar esta captación</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Captaciones guardadas</h2>
+      <p class="hint">Más recientes primero. Toca una para volver a verla, editarla o exportar su memorando.</p>
+      <div class="row2">
+        <input id="cap-repo-filter" placeholder="Filtrar por contacto, teléfono o zona…" oninput="filterCapRepo()">
+        <button type="button" class="ghost" onclick="loadCapRepo()" style="margin-top:0;">Actualizar lista</button>
+      </div>
+      <div id="cap-repo-list" style="margin-top:12px;"></div>
+    </div>
+  </div>
+</section>
+
 <div class="toast" id="toast"></div>
 
 <div id="zoom-widget" style="position:fixed; right:14px; bottom:14px; z-index:40; display:flex; align-items:center; gap:2px; background:var(--surface); border:1px solid var(--line); border-radius:999px; box-shadow:var(--shadow); padding:4px;">
@@ -882,13 +962,17 @@
     document.getElementById('view-leads').classList.toggle('active', name==='leads');
     document.getElementById('view-visits').classList.toggle('active', name==='visits');
     document.getElementById('view-analisis').classList.toggle('active', name==='analisis');
+    document.getElementById('view-captacion').classList.toggle('active', name==='captacion');
     document.getElementById('tab-ads').setAttribute('aria-selected', name==='ads');
     document.getElementById('tab-leads').setAttribute('aria-selected', name==='leads');
     document.getElementById('tab-visits').setAttribute('aria-selected', name==='visits');
     document.getElementById('tab-analisis').setAttribute('aria-selected', name==='analisis');
+    document.getElementById('tab-captacion').setAttribute('aria-selected', name==='captacion');
     if(name === 'analisis' && !analisisRepoLoaded){ analisisRepoLoaded = true; loadAnalisisRepo(); }
+    if(name === 'captacion' && !capRepoLoaded){ capRepoLoaded = true; loadCapRepo(); }
   };
   var analisisRepoLoaded = false;
+  var capRepoLoaded = false;
 
   function val(id){ return document.getElementById(id).value.trim(); }
   function escapeHTML(s){
@@ -1472,6 +1556,331 @@
     });
 
     pdf.save(filename + '.pdf');
+    toast('PDF descargado');
+  }
+
+
+  // ---- captación: ficha del propietario + memorando de primera visita ----
+  var AGENTE_NOMBRE = 'Cristina Castro del Olmo';
+  var AGENCIA_NOMBRE = 'REMAX ATICA';
+  var currentCapId = null;
+  var capRepoCache = [];
+
+  function capData(){
+    return {
+      id: currentCapId, contacto: val('cap-contacto'), telefono: val('cap-telefono'),
+      ubicacion: val('cap-ubicacion'), tipo: val('cap-tipo'), estado: val('cap-estado'),
+      notas: val('cap-notas'), tono: val('cap-tono'),
+      memorando: document.getElementById('cap-memorando').value
+    };
+  }
+  function capHasData(d){ return !!(d.contacto || d.telefono || d.ubicacion); }
+  function capTitulo(d){ return d.contacto || d.ubicacion || d.telefono || 'Captación'; }
+
+  function buildMemoPrompt(){
+    var d = capData();
+    var nc = '(no consta)';
+    var tipo = (d.tipo && d.tipo !== 'Sin especificar') ? d.tipo : nc;
+    return "Eres " + AGENTE_NOMBRE + ", asesora inmobiliaria de " + AGENCIA_NOMBRE + " en España. " +
+      "Has captado una vivienda y necesitas redactar una carta de presentación (memorando) dirigida a su " +
+      "propietario para proponerle una primera visita al inmueble.\n\n" +
+      "DATOS CONOCIDOS (lo que figure como \"" + nc + "\" NO lo inventes ni lo menciones; escribe la carta sin ello):\n" +
+      "- Persona de contacto: " + (d.contacto || nc) + "\n" +
+      "- Ubicación del inmueble: " + (d.ubicacion || nc) + "\n" +
+      "- Tipo de inmueble: " + tipo + "\n" +
+      "- Notas: " + (d.notas || nc) + "\n\n" +
+      "OBJETIVO: concertar una primera visita al inmueble para:\n" +
+      "1. Conocer la vivienda y a su propietario.\n" +
+      "2. Hablar de las condiciones de trabajo (cómo trabajamos y cómo se gestiona la venta).\n" +
+      "3. Explicar el contrato de encargo y, si procede, rellenarlo.\n" +
+      "4. Tomar fotografías del inmueble para su promoción.\n\n" +
+      "TONO: " + d.tono + ".\n\n" +
+      "REGLAS:\n" +
+      "- Si no consta el nombre del contacto, empieza con \"Estimado/a propietario/a\".\n" +
+      "- No inventes nada: ni precios, ni comisiones, ni estadísticas, ni cifras de ventas, ni premios, " +
+      "ni plazos de venta, ni detalles de la vivienda que no estén en los datos.\n" +
+      "- No prometas resultados.\n" +
+      "- Español de España, una carilla como máximo (250-350 palabras), párrafos cortos.\n" +
+      "- Incluye una breve lista con guiones de documentación útil para la visita (escritura o nota simple, " +
+      "último recibo del IBI, certificado energético, datos de la comunidad de propietarios), aclarando que " +
+      "es orientativa y que si no la tiene a mano no hay problema.\n" +
+      "- Termina invitando a llamarme por teléfono para fijar día y hora, y cierra con una despedida cortés " +
+      "(\"Atentamente,\" o similar).\n" +
+      "- NO incluyas fecha, cabecera, firma, mi nombre ni mis datos de contacto al final: la aplicación los añade sola.\n\n" +
+      "FORMATO DE ENTREGA: devuelve la carta DENTRO DE UN ÚNICO BLOQUE DE CÓDIGO (```) para copiarla con un clic, " +
+      "sin nada más dentro. La primera línea del bloque debe ser \"Asunto: ...\"; después una línea en blanco, " +
+      "el saludo, el cuerpo y la despedida. Fuera del bloque no escribas nada.";
+  }
+  window.prepareMemoPrompt = function(){
+    if(!capHasData(capData())){ toast('Rellena al menos un dato: contacto, teléfono o ubicación'); return; }
+    openClaude(buildMemoPrompt());
+  };
+  window.copyMemoPrompt = function(){
+    if(!capHasData(capData())){ toast('Rellena al menos un dato: contacto, teléfono o ubicación'); return; }
+    copyToClipboard(buildMemoPrompt());
+  };
+
+  // Prompt para ChatGPT: imagen de ambiente genérica, sin texto (los
+  // generadores de imagen deforman las letras) ni logos de marca.
+  function buildCapImagePrompt(){
+    var d = capData();
+    var zona = d.ubicacion || 'una zona residencial de España';
+    var tipo = (d.tipo && d.tipo !== 'Sin especificar') ? d.tipo.toLowerCase() : 'vivienda';
+    return "Crea una ilustración horizontal (formato 3:2) para acompañar la carta de presentación de una asesora " +
+      "inmobiliaria a un propietario. Motivo: " + tipo + " en " + zona +
+      ", en una calle residencial española acogedora y luminosa, con luz cálida de media tarde, estilo editorial " +
+      "limpio y moderno, paleta cálida y neutra. IMPORTANTE: sin texto, sin letras, sin logotipos, sin marcas, " +
+      "sin carteles y sin personas reconocibles. Composición despejada, con espacio libre en la parte superior " +
+      "para poder superponer un título después.";
+  }
+  window.copyCapImagePrompt = function(){ copyToClipboard(buildCapImagePrompt()); };
+  window.openCapImageChatGPT = function(){
+    var p = buildCapImagePrompt();
+    copyToClipboard(p);
+    window.open('https://chatgpt.com/?q=' + encodeURIComponent(p), '_blank');
+    toast('Prompt copiado y ChatGPT abierto en otra pestaña');
+  };
+
+  // ---- guardar / cargar / borrar ----
+  function updateCapDeleteBtn(){
+    document.getElementById('cap-delete-btn').style.display = currentCapId ? '' : 'none';
+  }
+  function fillCaptacion(a){
+    currentCapId = a.id;
+    document.getElementById('cap-contacto').value = a.contacto || '';
+    document.getElementById('cap-telefono').value = a.telefono || '';
+    document.getElementById('cap-ubicacion').value = a.ubicacion || '';
+    document.getElementById('cap-tipo').value = a.tipo || 'Sin especificar';
+    document.getElementById('cap-estado').value = a.estado || 'Pendiente de contactar';
+    document.getElementById('cap-notas').value = a.notas || '';
+    document.getElementById('cap-tono').value = a.tono || 'Cercano y profesional';
+    document.getElementById('cap-memorando').value = a.memorando || '';
+    updateCapDeleteBtn();
+    setSaveStatus('cap-save-status', 'saved');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast('Captación cargada: ' + capTitulo(a));
+  }
+  window.newCaptacion = function(){
+    currentCapId = null;
+    ['cap-contacto','cap-telefono','cap-ubicacion','cap-notas','cap-memorando'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('cap-tipo').value = 'Sin especificar';
+    document.getElementById('cap-estado').value = 'Pendiente de contactar';
+    document.getElementById('cap-tono').value = 'Cercano y profesional';
+    updateCapDeleteBtn();
+    setSaveStatus('cap-save-status', 'new', 'Nueva captación');
+    toast('Formulario listo para una captación nueva');
+  };
+  window.saveCaptacion = function(){
+    if(!hasSheet()){ toast('Configura la agenda arriba para guardar la captación'); return; }
+    var d = capData();
+    if(!capHasData(d)){ toast('Rellena al menos un dato: contacto, teléfono o ubicación'); return; }
+    var isUpdate = !!currentCapId;
+    setSaveStatus('cap-save-status', 'saving');
+    fetch(config.url, {
+      method: 'POST',
+      body: JSON.stringify({ action: isUpdate ? 'updateCaptacion' : 'addCaptacion', token: config.token, captacion: d })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){
+          if(!isUpdate && data.id) currentCapId = data.id;
+          updateCapDeleteBtn();
+          toast('Captación guardada en el Sheet');
+          setSaveStatus('cap-save-status', 'saved');
+          loadCapRepo();
+        } else {
+          toast('No se pudo guardar la captación');
+          setSaveStatus('cap-save-status', 'error');
+        }
+      })
+      .catch(function(){ toast('No se pudo guardar la captación'); setSaveStatus('cap-save-status', 'error'); });
+  };
+  window.deleteCaptacionUI = function(){
+    if(!currentCapId) return;
+    if(!hasSheet()){ toast('Configura la agenda arriba'); return; }
+    if(!window.confirm('¿Eliminar esta captación del Sheet? No se puede deshacer.')) return;
+    fetch(config.url, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteCaptacion', token: config.token, id: currentCapId })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if(data && data.ok){ window.newCaptacion(); loadCapRepo(); toast('Captación eliminada'); }
+        else toast('No se pudo eliminar la captación');
+      })
+      .catch(function(){ toast('No se pudo eliminar la captación'); });
+  };
+
+  window.loadCapRepo = function(){
+    var el = document.getElementById('cap-repo-list');
+    if(!hasSheet()){ el.innerHTML = '<p class="empty-note">Configura la agenda arriba para ver las captaciones.</p>'; return; }
+    el.innerHTML = '<p class="empty-note">Cargando…</p>';
+    fetch(config.url + '?token=' + encodeURIComponent(config.token) + '&action=captaciones')
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        capRepoCache = (data && data.captaciones) || [];
+        document.getElementById('cap-repo-filter').value = '';
+        renderCapRepo(capRepoCache);
+      })
+      .catch(function(){ el.innerHTML = '<p class="empty-note">No se pudo conectar con el Sheet.</p>'; });
+  };
+  window.filterCapRepo = function(){
+    var q = val('cap-repo-filter').toLowerCase();
+    var list = q ? capRepoCache.filter(function(a){
+      return ((a.contacto || '') + ' ' + (a.telefono || '') + ' ' + (a.ubicacion || '')).toLowerCase().indexOf(q) !== -1;
+    }) : capRepoCache;
+    renderCapRepo(list, !!q);
+  };
+  function renderCapRepo(list, isFiltered){
+    var el = document.getElementById('cap-repo-list');
+    if(!list.length){
+      el.innerHTML = '<p class="empty-note">' + (isFiltered ? 'Ninguna captación coincide.' : 'Todavía no hay ninguna captación guardada.') + '</p>';
+      return;
+    }
+    el.innerHTML = list.map(function(a){
+      var i = capRepoCache.indexOf(a);
+      return '<div class="ad-result" onclick="selectCapRepo(' + i + ')">' +
+        '<div class="who">' + escapeHTML(capTitulo(a)) + ' · ' + escapeHTML(a.estado || '') + '</div>' +
+        '<div class="what">' + escapeHTML(a.ubicacion || '') + (a.telefono ? ' · ' + escapeHTML(a.telefono) : '') +
+          (a.fecha ? ' · ' + escapeHTML(a.fecha) : '') + (a.memorando ? ' · con memorando' : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  window.selectCapRepo = function(i){ if(capRepoCache[i]) fillCaptacion(capRepoCache[i]); };
+
+  wireDirtyTracking('cap-save-status', ['cap-contacto','cap-telefono','cap-ubicacion','cap-tipo',
+    'cap-estado','cap-notas','cap-tono','cap-memorando']);
+
+  // ---- exportar el memorando (carta A4 vertical, Word / PDF) ----
+  // Separa "Asunto: ..." del cuerpo y quita vallas ``` si se pegaron de más.
+  function parseMemo_(text){
+    var lines = String(text || '').replace(/\r/g, '').split('\n')
+      .filter(function(l){ return !/^\s*```/.test(l); });
+    var asunto = '';
+    for(var i = 0; i < lines.length; i++){
+      if(!lines[i].trim()) continue;
+      var m = lines[i].trim().match(/^asunto\s*:\s*(.*)$/i);
+      if(m){ asunto = m[1]; lines.splice(i, 1); }
+      break;
+    }
+    var blocks = [];
+    lines.forEach(function(l){
+      var t = l.trim();
+      if(!t){ blocks.push({ type: 'blank' }); return; }
+      if(/^[-•*]\s+/.test(t)) blocks.push({ type: 'bullet', text: t.replace(/^[-•*]\s+/, '') });
+      else blocks.push({ type: 'p', text: t });
+    });
+    // quita huecos iniciales/finales
+    while(blocks.length && blocks[0].type === 'blank') blocks.shift();
+    while(blocks.length && blocks[blocks.length - 1].type === 'blank') blocks.pop();
+    return { asunto: asunto, blocks: blocks };
+  }
+  function memoFilename_(d){
+    var slug = capTitulo(d).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'captacion';
+    return 'memorando-' + slug;
+  }
+  window.downloadMemo = function(format){
+    var d = capData();
+    if(!d.memorando.trim()){ toast('Todavía no has pegado el memorando'); return; }
+    var fechaTxt = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    var parsed = parseMemo_(d.memorando);
+    var telefono = config.telefono || '';
+    var logoP = config.logoUrl ? fetchImageBlob(config.logoUrl).then(imageInfo).catch(function(){
+      toast('No se pudo descargar el logo (comprueba que el enlace de Drive sea público). Se genera sin logo.');
+      return null;
+    }) : Promise.resolve(null);
+    logoP.then(function(logo){
+      var info = { parsed: parsed, fecha: fechaTxt, telefono: telefono, logo: logo, filename: memoFilename_(d) };
+      if(format === 'word') downloadMemoWord_(info); else downloadMemoPdf_(info);
+    });
+  };
+  function downloadMemoWord_(info){
+    if(typeof docx === 'undefined'){ toast('No se pudo cargar la librería de Word (revisa tu conexión a internet)'); return; }
+    var D = docx;
+    var children = [];
+    var header = buildHeaderTable(D, info.logo, AGENTE_NOMBRE,
+      AGENCIA_NOMBRE + (info.telefono ? ' · ' + info.telefono : ''));
+    if(header){ children.push(header); children.push(new D.Paragraph({ spacing: { after: 360 }, children: [] })); }
+    children.push(new D.Paragraph({ alignment: D.AlignmentType.RIGHT, spacing: { after: 280 },
+      children: [ new D.TextRun({ text: info.fecha, color: '666666' }) ] }));
+    if(info.parsed.asunto){
+      children.push(new D.Paragraph({ spacing: { after: 240 }, children: [
+        new D.TextRun({ text: 'Asunto: ', bold: true }), new D.TextRun({ text: info.parsed.asunto, bold: true })
+      ] }));
+    }
+    info.parsed.blocks.forEach(function(b){
+      if(b.type === 'blank') return;
+      if(b.type === 'bullet') children.push(new D.Paragraph({ text: b.text, bullet: { level: 0 }, spacing: { after: 60 } }));
+      else children.push(new D.Paragraph({ children: [ new D.TextRun(b.text) ], spacing: { after: 160 } }));
+    });
+    children.push(new D.Paragraph({ spacing: { before: 400 }, children: [ new D.TextRun({ text: AGENTE_NOMBRE, bold: true }) ] }));
+    children.push(new D.Paragraph({ children: [ new D.TextRun({ text: 'Asesora inmobiliaria · ' + AGENCIA_NOMBRE, color: '666666' }) ] }));
+    if(info.telefono) children.push(new D.Paragraph({ children: [ new D.TextRun({ text: 'Tel. ' + info.telefono, color: '666666' }) ] }));
+    var doc = new D.Document({
+      sections: [{
+        properties: { page: {
+          size: { orientation: D.PageOrientation.PORTRAIT, width: 11906, height: 16838 },
+          margin: { top: 1000, bottom: 1000, left: 1200, right: 1200 }
+        } },
+        children: children
+      }]
+    });
+    D.Packer.toBlob(doc).then(function(blob){
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = info.filename + '.docx';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      toast('Word descargado');
+    }).catch(function(){ toast('No se pudo generar el documento Word'); });
+  }
+  function downloadMemoPdf_(info){
+    if(typeof window.jspdf === 'undefined'){ toast('No se pudo cargar la librería de PDF (revisa tu conexión a internet)'); return; }
+    var pdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    var pageW = pdf.internal.pageSize.getWidth();
+    var pageH = pdf.internal.pageSize.getHeight();
+    var margin = 22, maxW = pageW - margin * 2;
+    var y = margin;
+    function ensureSpace(h){ if(y + h > pageH - margin){ pdf.addPage(); y = margin; } }
+
+    // cabecera: logo a la izquierda, datos de la agente a la derecha
+    var headTop = y, logoH = 0;
+    if(info.logo){
+      var lw = Math.min(45, info.logo.w * 0.2646), lh = lw * info.logo.h / info.logo.w;
+      if(lh > 22){ lh = 22; lw = lh * info.logo.w / info.logo.h; }
+      try{ pdf.addImage(new Uint8Array(info.logo.data), 'PNG', margin, headTop, lw, lh); logoH = lh; }catch(e){}
+    }
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(20);
+    pdf.text(AGENTE_NOMBRE, pageW - margin, headTop + 4, { align: 'right' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(100);
+    pdf.text(AGENCIA_NOMBRE + (info.telefono ? ' · ' + info.telefono : ''), pageW - margin, headTop + 9.5, { align: 'right' });
+    y = headTop + Math.max(logoH, 12) + 12;
+
+    pdf.setFontSize(10); pdf.setTextColor(100);
+    pdf.text(info.fecha, pageW - margin, y, { align: 'right' }); y += 12;
+
+    pdf.setTextColor(20);
+    if(info.parsed.asunto){
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+      var al = pdf.splitTextToSize('Asunto: ' + info.parsed.asunto, maxW);
+      pdf.text(al, margin, y); y += al.length * 5.6 + 5;
+    }
+    info.parsed.blocks.forEach(function(b){
+      if(b.type === 'blank'){ y += 2; return; }
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11); pdf.setTextColor(20);
+      var isB = b.type === 'bullet';
+      var lines = pdf.splitTextToSize((isB ? '•  ' : '') + b.text, isB ? maxW - 5 : maxW);
+      ensureSpace(lines.length * 5.6 + 2);
+      pdf.text(lines, isB ? margin + 5 : margin, y);
+      y += lines.length * 5.6 + (isB ? 1.5 : 3);
+    });
+    ensureSpace(24); y += 8;
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(20);
+    pdf.text(AGENTE_NOMBRE, margin, y); y += 5.5;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(100);
+    pdf.text('Asesora inmobiliaria · ' + AGENCIA_NOMBRE, margin, y); y += 5;
+    if(info.telefono) pdf.text('Tel. ' + info.telefono, margin, y);
+    pdf.save(info.filename + '.pdf');
     toast('PDF descargado');
   }
 
