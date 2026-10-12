@@ -73,9 +73,29 @@
   nav.tabs button{font:inherit; font-weight:600; font-size:.9rem; color:var(--ink-soft); background:transparent; border:none; padding:9px 16px; border-radius:8px; cursor:pointer; white-space:nowrap; flex-shrink:0;}
   nav.tabs button[aria-selected="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow);}
   nav.tabs button:focus-visible{outline:2px solid var(--brand); outline-offset:2px;}
-  @media (max-width:480px){
-    nav.tabs{gap:2px;}
-    nav.tabs button{padding:8px 10px; font-size:.8rem;}
+  /* Móvil: las pestañas pasan a una barra fija inferior (alcance del pulgar),
+     con icono + etiqueta; la cabecera se compacta y queda fija arriba. */
+  @media (max-width:720px){
+    body{padding-bottom:calc(88px + env(safe-area-inset-bottom));}
+    header.top{position:sticky; top:0; z-index:30; flex-wrap:nowrap; gap:10px; padding-block:10px; margin-inline:-16px; padding-inline:16px; background:var(--paper); border-bottom:1px solid var(--line);}
+    .brandmark{min-width:0; flex:1 1 auto; gap:10px;}
+    .brandmark .logo{width:38px; height:38px; border-radius:10px;}
+    .brandmark > div{min-width:0;}
+    .brandmark h1{font-size:1.05rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .brandmark p{display:none;}
+    .top-actions{flex-shrink:0;}
+    .top-actions .ghost{font-size:0; padding:0; width:40px; height:40px; border-radius:10px; background:var(--surface);}
+    .top-actions .ghost::before{font-size:1.1rem; line-height:1;}
+    .top-actions .btn-refresh::before{content:'🔄';}
+    .top-actions .btn-logout::before{content:'🚪';}
+    nav.tabs{position:fixed; left:0; right:0; bottom:0; z-index:40; max-width:none; gap:4px; justify-content:space-between; overflow:visible;
+      background:var(--surface); border:none; border-top:1px solid var(--line); border-radius:20px 20px 0 0;
+      padding:6px 8px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -8px 24px -12px rgba(21,35,50,.28);}
+    nav.tabs button{flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px; font-size:.68rem; border-radius:14px;}
+    nav.tabs button::before{content:attr(data-icon); font-size:1.4rem; line-height:1;}
+    nav.tabs button[aria-selected="true"]{background:color-mix(in srgb, var(--brand) 20%, var(--surface)); color:var(--brand-ink); box-shadow:none;}
+    .toast{bottom:calc(96px + env(safe-area-inset-bottom));}
+    #zoom-widget{bottom:calc(96px + env(safe-area-inset-bottom)) !important;}
   }
 
   .icon-btn{position:relative; width:40px; height:40px; flex-shrink:0; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); font-size:1.15rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;}
@@ -295,19 +315,19 @@
     </div>
   </div>
   <nav class="tabs" role="tablist">
-    <button role="tab" id="tab-ads" aria-selected="true" onclick="switchView('ads')">Anuncios</button>
-    <button role="tab" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas</button>
-    <button role="tab" id="tab-visits" aria-selected="false" onclick="switchView('visits')">Visitas</button>
-    <button role="tab" id="tab-analisis" aria-selected="false" onclick="switchView('analisis')">Análisis</button>
-    <button role="tab" id="tab-captacion" aria-selected="false" onclick="switchView('captacion')">Captación</button>
+    <button role="tab" data-icon="🏠" id="tab-ads" aria-selected="true" onclick="switchView('ads')">Anuncios</button>
+    <button role="tab" data-icon="💬" id="tab-leads" aria-selected="false" onclick="switchView('leads')">Respuestas</button>
+    <button role="tab" data-icon="📅" id="tab-visits" aria-selected="false" onclick="switchView('visits')">Visitas</button>
+    <button role="tab" data-icon="📊" id="tab-analisis" aria-selected="false" onclick="switchView('analisis')">Análisis</button>
+    <button role="tab" data-icon="🔑" id="tab-captacion" aria-selected="false" onclick="switchView('captacion')">Captación</button>
   </nav>
-  <div style="display:flex; gap:8px;">
-    <button class="ghost" onclick="refreshAll()" title="Recargar anuncios, visitas y conversaciones desde el Sheet">Refrescar</button>
+  <div class="top-actions" style="display:flex; gap:8px;">
+    <button class="ghost btn-refresh" onclick="refreshAll()" title="Recargar anuncios, visitas y conversaciones desde el Sheet" aria-label="Refrescar">Refrescar</button>
     <button class="icon-btn" onclick="openSettingsModal()" aria-label="Ajustes" title="Ajustes: agenda (Google Sheet) y datos de la inmobiliaria">
       <span aria-hidden="true">⚙</span>
       <span class="dot" id="settings-dot"></span>
     </button>
-    <button class="ghost" onclick="logout()" title="Cerrar sesión en este navegador">Cerrar sesión</button>
+    <button class="ghost btn-logout" onclick="logout()" title="Cerrar sesión en este navegador" aria-label="Cerrar sesión">Cerrar sesión</button>
   </div>
 </header>
 
@@ -736,10 +756,25 @@
       </div>
       <p class="hint" style="margin:8px 0 0;">La cabecera con el logo, el nombre de Cristina Castro del Olmo, REMAX ATICA y su teléfono (⚙ Configuración), la fecha y la firma se añaden solas.</p>
 
-      <div class="step-head"><span class="num">4</span><h3>Imagen para ChatGPT (opcional)</h3></div>
+      <div class="step-head"><span class="num">4</span><h3>Imagen para la carta (opcional)</h3></div>
       <button type="button" class="ghost" onclick="copyCapImagePrompt()" style="margin-top:0;">Copiar prompt de imagen</button>
       <button type="button" class="ghost" onclick="openCapImageChatGPT()" style="margin-top:8px;">Abrir en ChatGPT</button>
-      <p class="hint" style="margin:10px 0 0;">Genera una imagen de ambiente (sin texto ni logos) para acompañar la carta. No es una foto del inmueble real.</p>
+      <p class="hint" style="margin:10px 0 12px;">Genera la imagen en ChatGPT, descárgala y añádela aquí: saldrá como banner bajo la cabecera de la carta (se recorta en panorámico). Es una imagen de ambiente, no una foto del inmueble real.</p>
+      <div class="field">
+        <label for="cap-img-file">Subir la imagen descargada</label>
+        <input id="cap-img-file" type="file" accept="image/*" onchange="onCapImageFile(this)">
+      </div>
+      <div class="field">
+        <label for="cap-img-url">…o enlace de Google Drive (se guarda con la captación)</label>
+        <input id="cap-img-url" placeholder="Pega el enlace para compartir de Google Drive" oninput="renderCapImage()">
+      </div>
+      <div id="cap-img-preview" style="display:none; margin-top:6px;">
+        <div style="width:100%; aspect-ratio:2.6/1; overflow:hidden; border-radius:8px; border:1px solid var(--line); background:var(--surface-2);">
+          <img id="cap-img-thumb" alt="Vista previa de la imagen de la carta" style="width:100%; height:100%; object-fit:cover; display:block;">
+        </div>
+        <button type="button" class="ghost" onclick="clearCapImage()" style="margin-top:8px;">Quitar imagen</button>
+      </div>
+      <p class="hint" style="margin:8px 0 0;">Subir el archivo solo vale para esta sesión. Para conservarla con la captación, súbela a Drive (compartida con enlace) y pega aquí el enlace.</p>
 
       <div class="form-actions">
         <button type="button" class="ghost" onclick="newCaptacion()">Nueva captación</button>
@@ -1571,7 +1606,8 @@
       id: currentCapId, contacto: val('cap-contacto'), telefono: val('cap-telefono'),
       ubicacion: val('cap-ubicacion'), tipo: val('cap-tipo'), estado: val('cap-estado'),
       notas: val('cap-notas'), tono: val('cap-tono'),
-      memorando: document.getElementById('cap-memorando').value
+      memorando: document.getElementById('cap-memorando').value,
+      imagenUrl: val('cap-img-url')
     };
   }
   function capHasData(d){ return !!(d.contacto || d.telefono || d.ubicacion); }
@@ -1626,12 +1662,12 @@
     var d = capData();
     var zona = d.ubicacion || 'una zona residencial de España';
     var tipo = (d.tipo && d.tipo !== 'Sin especificar') ? d.tipo.toLowerCase() : 'vivienda';
-    return "Crea una ilustración horizontal (formato 3:2) para acompañar la carta de presentación de una asesora " +
-      "inmobiliaria a un propietario. Motivo: " + tipo + " en " + zona +
+    return "Crea una ilustración horizontal (formato 3:2) para usar como banner en la cabecera de la carta de " +
+      "presentación de una asesora inmobiliaria a un propietario. Motivo: " + tipo + " en " + zona +
       ", en una calle residencial española acogedora y luminosa, con luz cálida de media tarde, estilo editorial " +
       "limpio y moderno, paleta cálida y neutra. IMPORTANTE: sin texto, sin letras, sin logotipos, sin marcas, " +
-      "sin carteles y sin personas reconocibles. Composición despejada, con espacio libre en la parte superior " +
-      "para poder superponer un título después.";
+      "sin carteles y sin personas reconocibles. Coloca el motivo principal en el centro de la imagen, porque " +
+      "después se recortará en formato panorámico (se perderá algo de la parte superior e inferior).";
   }
   window.copyCapImagePrompt = function(){ copyToClipboard(buildCapImagePrompt()); };
   window.openCapImageChatGPT = function(){
@@ -1640,6 +1676,73 @@
     window.open('https://chatgpt.com/?q=' + encodeURIComponent(p), '_blank');
     toast('Prompt copiado y ChatGPT abierto en otra pestaña');
   };
+
+  // ---- imagen del memorando: archivo subido (solo esta sesión) o enlace de
+  // Drive (se guarda en el Sheet). El archivo subido tiene prioridad. ----
+  var capImageBlob = null;
+  var capImageObjUrl = null;
+  window.onCapImageFile = function(input){
+    var f = input.files && input.files[0];
+    if(!f) return;
+    if(f.type.indexOf('image') !== 0){ toast('El archivo no es una imagen'); input.value = ''; return; }
+    capImageBlob = f;
+    if(capImageObjUrl) URL.revokeObjectURL(capImageObjUrl);
+    capImageObjUrl = URL.createObjectURL(f);
+    renderCapImage();
+    toast('Imagen añadida a la carta');
+  };
+  window.clearCapImage = function(){
+    capImageBlob = null;
+    if(capImageObjUrl){ URL.revokeObjectURL(capImageObjUrl); capImageObjUrl = null; }
+    document.getElementById('cap-img-file').value = '';
+    document.getElementById('cap-img-url').value = '';
+    renderCapImage();
+    markDirty('cap-save-status');
+  };
+  window.renderCapImage = function(){
+    var box = document.getElementById('cap-img-preview');
+    var img = document.getElementById('cap-img-thumb');
+    var candidates = capImageObjUrl ? [capImageObjUrl] : driveDirectUrls(val('cap-img-url'));
+    if(!candidates.length){ box.style.display = 'none'; img.removeAttribute('src'); return; }
+    function tryNext(i){
+      if(i >= candidates.length){ box.style.display = 'none'; return; }
+      img.onload = function(){ box.style.display = 'block'; };
+      img.onerror = function(){ tryNext(i + 1); };
+      img.src = candidates[i];
+    }
+    tryNext(0);
+  };
+  // Recorta al centro en panorámico (relación ancho/alto = ratio). Si la
+  // imagen ya es más ancha que eso, se deja tal cual.
+  function cropBlobToBanner(blob, ratio){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(blob);
+      var im = new Image();
+      im.onload = function(){
+        var w = im.naturalWidth, h = im.naturalHeight;
+        var ch = Math.min(h, Math.round(w / ratio));
+        var sy = Math.round((h - ch) / 2);
+        // reduce a 1400 px de ancho como máximo: de sobra para 16 cm impresos
+        var ow = Math.min(w, 1400), oh = Math.round(ch * ow / w);
+        var canvas = document.createElement('canvas');
+        canvas.width = ow; canvas.height = oh;
+        canvas.getContext('2d').drawImage(im, 0, sy, w, ch, 0, 0, ow, oh);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(function(b){ b ? resolve(b) : reject(new Error('canvas-fail')); }, 'image/png');
+      };
+      im.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('img-load-fail')); };
+      im.src = url;
+    });
+  }
+  // Devuelve {data,w,h} listo para Word/PDF, o null si no hay imagen o falla.
+  function loadCapBanner(d){
+    var src = capImageBlob ? Promise.resolve(capImageBlob) : (d.imagenUrl ? fetchImageBlob(d.imagenUrl) : null);
+    if(!src) return Promise.resolve(null);
+    return src.then(function(b){ return cropBlobToBanner(b, 2.6); }).then(imageInfo).catch(function(){
+      toast('No se pudo cargar la imagen (si es de Drive, comprueba que el enlace sea público). Se genera sin ella.');
+      return null;
+    });
+  }
 
   // ---- guardar / cargar / borrar ----
   function updateCapDeleteBtn(){
@@ -1655,6 +1758,11 @@
     document.getElementById('cap-notas').value = a.notas || '';
     document.getElementById('cap-tono').value = a.tono || 'Cercano y profesional';
     document.getElementById('cap-memorando').value = a.memorando || '';
+    capImageBlob = null;
+    if(capImageObjUrl){ URL.revokeObjectURL(capImageObjUrl); capImageObjUrl = null; }
+    document.getElementById('cap-img-file').value = '';
+    document.getElementById('cap-img-url').value = a.imagenUrl || '';
+    renderCapImage();
     updateCapDeleteBtn();
     setSaveStatus('cap-save-status', 'saved');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1668,6 +1776,11 @@
     document.getElementById('cap-tipo').value = 'Sin especificar';
     document.getElementById('cap-estado').value = 'Pendiente de contactar';
     document.getElementById('cap-tono').value = 'Cercano y profesional';
+    capImageBlob = null;
+    if(capImageObjUrl){ URL.revokeObjectURL(capImageObjUrl); capImageObjUrl = null; }
+    document.getElementById('cap-img-file').value = '';
+    document.getElementById('cap-img-url').value = '';
+    renderCapImage();
     updateCapDeleteBtn();
     setSaveStatus('cap-save-status', 'new', 'Nueva captación');
     toast('Formulario listo para una captación nueva');
@@ -1749,7 +1862,7 @@
   window.selectCapRepo = function(i){ if(capRepoCache[i]) fillCaptacion(capRepoCache[i]); };
 
   wireDirtyTracking('cap-save-status', ['cap-contacto','cap-telefono','cap-ubicacion','cap-tipo',
-    'cap-estado','cap-notas','cap-tono','cap-memorando']);
+    'cap-estado','cap-notas','cap-tono','cap-memorando','cap-img-url']);
 
   // ---- exportar el memorando (carta A4 vertical, Word / PDF) ----
   // Separa "Asunto: ..." del cuerpo y quita vallas ``` si se pegaron de más.
@@ -1790,8 +1903,8 @@
       toast('No se pudo descargar el logo (comprueba que el enlace de Drive sea público). Se genera sin logo.');
       return null;
     }) : Promise.resolve(null);
-    logoP.then(function(logo){
-      var info = { parsed: parsed, fecha: fechaTxt, telefono: telefono, logo: logo, filename: memoFilename_(d) };
+    Promise.all([logoP, loadCapBanner(d)]).then(function(res){
+      var info = { parsed: parsed, fecha: fechaTxt, telefono: telefono, logo: res[0], banner: res[1], filename: memoFilename_(d) };
       if(format === 'word') downloadMemoWord_(info); else downloadMemoPdf_(info);
     });
   };
@@ -1801,7 +1914,13 @@
     var children = [];
     var header = buildHeaderTable(D, info.logo, AGENTE_NOMBRE,
       AGENCIA_NOMBRE + (info.telefono ? ' · ' + info.telefono : ''));
-    if(header){ children.push(header); children.push(new D.Paragraph({ spacing: { after: 360 }, children: [] })); }
+    if(header){ children.push(header); children.push(new D.Paragraph({ spacing: { after: 200 }, children: [] })); }
+    if(info.banner){
+      var bsz = fitSize(info.banner.w, info.banner.h, 620, 240);
+      children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, spacing: { after: 280 }, children: [
+        new D.ImageRun({ data: info.banner.data, transformation: { width: bsz.w, height: bsz.h }, type: 'png' })
+      ] }));
+    }
     children.push(new D.Paragraph({ alignment: D.AlignmentType.RIGHT, spacing: { after: 280 },
       children: [ new D.TextRun({ text: info.fecha, color: '666666' }) ] }));
     if(info.parsed.asunto){
@@ -1854,7 +1973,13 @@
     pdf.text(AGENTE_NOMBRE, pageW - margin, headTop + 4, { align: 'right' });
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(100);
     pdf.text(AGENCIA_NOMBRE + (info.telefono ? ' · ' + info.telefono : ''), pageW - margin, headTop + 9.5, { align: 'right' });
-    y = headTop + Math.max(logoH, 12) + 12;
+    y = headTop + Math.max(logoH, 12) + 8;
+
+    if(info.banner){
+      var bw = maxW, bh = bw * info.banner.h / info.banner.w;
+      if(bh > 62){ bh = 62; bw = bh * info.banner.w / info.banner.h; }
+      try{ pdf.addImage(new Uint8Array(info.banner.data), 'PNG', margin + (maxW - bw) / 2, y, bw, bh, undefined, 'FAST'); y += bh + 8; }catch(e){}
+    } else { y += 4; }
 
     pdf.setFontSize(10); pdf.setTextColor(100);
     pdf.text(info.fecha, pageW - margin, y, { align: 'right' }); y += 12;
