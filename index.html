@@ -1598,6 +1598,7 @@
   // ---- captación: ficha del propietario + memorando de primera visita ----
   var AGENTE_NOMBRE = 'Cristina Castro del Olmo';
   var AGENCIA_NOMBRE = 'REMAX ATICA';
+  var AVISO_IMAGEN = 'Imagen generada por IA con fines visuales y comerciales meramente orientativos.';
   var currentCapId = null;
   var capRepoCache = [];
 
@@ -1917,8 +1918,11 @@
     if(header){ children.push(header); children.push(new D.Paragraph({ spacing: { after: 200 }, children: [] })); }
     if(info.banner){
       var bsz = fitSize(info.banner.w, info.banner.h, 620, 240);
-      children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, spacing: { after: 280 }, children: [
+      children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, spacing: { after: 40 }, children: [
         new D.ImageRun({ data: info.banner.data, transformation: { width: bsz.w, height: bsz.h }, type: 'png' })
+      ] }));
+      children.push(new D.Paragraph({ alignment: D.AlignmentType.CENTER, spacing: { after: 280 }, children: [
+        new D.TextRun({ text: AVISO_IMAGEN, italics: true, size: 15, color: '888888' })
       ] }));
     }
     children.push(new D.Paragraph({ alignment: D.AlignmentType.RIGHT, spacing: { after: 280 },
@@ -1978,7 +1982,9 @@
     if(info.banner){
       var bw = maxW, bh = bw * info.banner.h / info.banner.w;
       if(bh > 62){ bh = 62; bw = bh * info.banner.w / info.banner.h; }
-      try{ pdf.addImage(new Uint8Array(info.banner.data), 'PNG', margin + (maxW - bw) / 2, y, bw, bh, undefined, 'FAST'); y += bh + 8; }catch(e){}
+      try{ pdf.addImage(new Uint8Array(info.banner.data), 'PNG', margin + (maxW - bw) / 2, y, bw, bh, undefined, 'FAST'); y += bh + 4; }catch(e){}
+      pdf.setFont('helvetica', 'italic'); pdf.setFontSize(7); pdf.setTextColor(136);
+      pdf.text(AVISO_IMAGEN, pageW / 2, y, { align: 'center' }); y += 12;
     } else { y += 4; }
 
     pdf.setFontSize(10); pdf.setTextColor(100);
